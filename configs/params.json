@@ -1,0 +1,221 @@
+{
+  "version": "1.8",
+  "description": "Stream Crossing Prioritization Model Parameters",
+  
+  "goal_weights": {
+    "flood_vulnerability": 0.87500000000,
+    "environmental_quality": 0.781007751937984,
+    "structural_risk": 0.763779527559055,
+    "road_criticality": 0.740234375,
+    "wildlife_connectivity": 0.767441860465116,
+    "habitat_quality": 0.767441860465116,
+    "environmental_justice": 0.533464566929133
+  },
+  
+  "criteria_weights": {
+    "fv": {
+      "hydraulic_capacity": 0.864754098360655,
+      "flooding_history": 0.804878048780487
+    },
+    "eq": {
+      "erosion": 0.800403225806451,
+      "geomorphic_compatibility": 0.769067796610169,
+      "water_quality": 0.66250000
+    },
+    "sr": {
+      "condition": 0.830645161290322,
+      "size": 0.770491803278688,
+      "depth_of_cover": 0.770491803278688,
+      "material": 0.558943089430894
+    },
+    "rc": {
+      "aadt": 0.591880341880341,
+      "distance_to_services": 0.579059829059829,
+      "functional_classification": 0.537280701754385
+    },
+    "wl": {
+      "aop": 0.77892561983471,
+      "special_species": 0.728632478632478
+    },
+    "hqg": {
+      "habitat_quality": 0.694214876033057,
+      "wetland_proximity": 0.7000000000000,
+      "conservation_status": 0.619658119658119
+    }
+  },
+  
+  "score_maps": {
+    "condition": {
+      "Poor": 1,
+      "Fair": 0.5,
+      "Good": 0
+    },
+    "material": {
+      "Steel-Corrugated": 1,
+      "Steel-Smooth": 1,
+      "Aluminum-Corrugated": 1,
+      "Masonry": 0.25,
+      "Concrete": 0.111,
+      "Plastic-Corrugated": 0.028,
+      "Plastic-Smooth": 0.028,
+      "Other": 0,
+      "Wood": 0,
+      "Stone": 0.25
+    },
+    "geomorphic_compatibility": {
+      "Fully Compatible": 0,
+      "Fully Incompatible": 1,
+      "Mostly Incompatible": 0.75,
+      "Partially Compatible": 0.5,
+      "Mostly Compatible": 0.25
+    },
+    "aop": {
+      "Full Passage": 0,
+      "Reduced Passage": 0.33,
+      "Passage only for Adult Trout": 0.66,
+      "No Passage": 1
+    },
+    "functional_classification": {
+      "1": 1,
+      "2": 0.833,
+      "3": 0.667,
+      "4": 0.5,
+      "5": 0.33,
+      "6": 0.167,
+      "0": 0,
+      "7": 0
+    },
+    "cost_multiplier": {
+      "1": 2,
+      "2": 2,
+      "3": 1.8,
+      "4": 1.2,
+      "5": 1,
+      "0": 1,
+      "6": 1.1
+    }
+  },
+  
+  "bins": {
+    "aadt": [0, 2000, 4000, 6000, 10000, 20000, 1000000000000],
+    "aadt_scores": [0.028, 0.111, 0.25, 0.444, 0.694, 1],
+    "size": [0, 7.068583, 12.5, 16, 38.5, 1000000000000],
+    "size_scores": [0, 0.02, 0.184, 0.51, 1],
+    "depth_of_cover": [0, 5, 10, 20, 1000000000000],
+    "doc_scores": [0.04, 0.36, 0.64, 1]
+  },
+  
+  "constants": {
+    "cpi": 1.235831737,
+    "bankfull_multiplier": 1.2,
+    "base_cost_per_unit": 500
+  },
+  
+  "validation": {
+    "StructCond": {
+      "enum": ["Poor", "Fair", "Good"],
+      "case_sensitive": false
+    },
+    "UsHwCon": {
+      "enum": ["Poor", "Fair", "Good"],
+      "case_sensitive": false
+    },
+    "DsHwCon": {
+      "enum": ["Poor", "Fair", "Good"],
+      "case_sensitive": false
+    },
+    "StructMat": {
+      "enum": [
+        "Steel-Corrugated",
+        "Steel-Smooth",
+        "Aluminum-Corrugated",
+        "Masonry",
+        "Concrete",
+        "Plastic-Corrugated",
+        "Plastic-Smooth",
+        "Other",
+        "Wood",
+        "Stone"
+      ],
+      "case_sensitive": false
+    },
+    "GC_Score": {
+      "enum": [
+        "Fully Compatible",
+        "Fully Incompatible",
+        "Mostly Incompatible",
+        "Partially Compatible",
+        "Mostly Compatible"
+      ],
+      "case_sensitive": false
+    },
+    "AOP_Score": {
+      "enum": [
+        "Full Passage",
+        "Reduced Passage",
+        "Passage only for Adult Trout",
+        "No Passage"
+      ],
+      "case_sensitive": false
+    },
+    "UsUndermin": {
+      "enum": [
+        "None",
+        "Footers",
+        "Culvert",
+        "Wing Walls",
+        "Culvert and Footers",
+        "Culvert and Wing Walls",
+        "Footers and Wing Walls",
+        "Abutments",
+        "Culvert, Footers, and Wing Walls"
+      ],
+      "case_sensitive": false
+    },
+    "DsUndermin": {
+      "enum": [
+        "None",
+        "Footers",
+        "Culvert",
+        "Wing Walls",
+        "Culvert and Footers",
+        "Culvert and Wing Walls",
+        "Footers and Wing Walls",
+        "Abutments",
+        "Culvert, Footers, and Wing Walls"
+      ],
+      "case_sensitive": false
+    },
+    "OutScour": {
+      "enum": ["None", "Low", "Medium", "High"],
+      "case_sensitive": false
+    },
+    "StructSed": {
+      "enum": ["Open", "1/4 Full", "1/2 Full", "3/4 Full", "High"],
+      "case_sensitive": false
+    },
+    "UsBankEros": {
+      "enum": ["None", "Low", "High"],
+      "case_sensitive": false
+    },
+    "DsBankEros": {
+      "enum": ["None", "Low", "High"],
+      "case_sensitive": false
+    },
+    "UsBankArmo": {
+      "enum": ["Intact", "Failing"],
+      "case_sensitive": false
+    },
+    "DsBankArmo": {
+      "enum": ["Intact", "Failing"],
+      "case_sensitive": false
+    },
+    "AADT": {
+      "type": "numeric",
+      "range": [0, 1000000000000]
+    },
+    "FUNCT_SYST": {
+      "enum": [0, 1, 2, 3, 4, 5, 6, 7]
+    }
+  }
+}
