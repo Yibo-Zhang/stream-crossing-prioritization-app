@@ -45,23 +45,18 @@ def calculate_sr(df, params):
     df['UsSize'] = df['UsSize'].replace(0, np.nan)
     df['SizeScr'] = pd.cut(df['UsSize'], bins=bins['size'], labels=bins['size_scores'], right=True).astype(float)
     
-    df['CoverDepth'] = df['CoverDepth'].replace(0, np.nan)
-    df['DoCScr'] = pd.cut(df['CoverDepth'], bins=bins['depth_of_cover'], labels=bins['doc_scores'], right=True).astype(float)
-    
+    #removed depth of cover scoring according to the discussion on numerous bridges with 0 and large depth of cover not necessarily being a risk factor.
+
     df['MatScr'] = df['StructMat'].map(score_maps['material'])
-    
     df['SCond'] = df['CondScr'] * weights['condition']
     df['SSize'] = df['SizeScr'] * weights['size']
-    df['SDoC'] = df['DoCScr'] * weights['depth_of_cover']
     df['SMat'] = df['MatScr'] * weights['material']
     
     def calc_sr_score(row):
         cond = row['CondScr']
         if pd.notna(cond) and cond > 0:
-            num = sum([row['SCond'] if pd.notna(cond) else 0, row['SSize'] if pd.notna(row['SizeScr']) else 0,
-                      row['SDoC'] if pd.notna(row['DoCScr']) else 0, row['SMat'] if pd.notna(row['MatScr']) else 0])
-            den = sum([weights['condition'] if pd.notna(cond) else 0, weights['size'] if pd.notna(row['SizeScr']) else 0,
-                      weights['depth_of_cover'] if pd.notna(row['DoCScr']) else 0, weights['material'] if pd.notna(row['MatScr']) else 0])
+            num = sum([row['SCond'] if pd.notna(cond) else 0, row['SSize'] if pd.notna(row['SizeScr']) else 0, row['SMat'] if pd.notna(row['MatScr']) else 0])
+            den = sum([weights['condition'] if pd.notna(cond) else 0, weights['size'] if pd.notna(row['SizeScr']) else 0, weights['material'] if pd.notna(row['MatScr']) else 0])
         else:
             num = sum([row['SCond'] if pd.notna(cond) else 0, row['SMat'] if pd.notna(row['MatScr']) else 0])
             den = sum([weights['condition'] if pd.notna(cond) else 0, weights['material'] if pd.notna(row['MatScr']) else 0])
@@ -69,7 +64,7 @@ def calculate_sr(df, params):
     
     df['SRScr'] = df.apply(calc_sr_score, axis=1)
     df['SRRank'] = df['SRScr'].rank(method='dense', ascending=False)
-    present, missing, conf_str = calculate_confidence(df, ['CondScr', 'SizeScr', 'DoCScr', 'MatScr'])
+    present, missing, conf_str = calculate_confidence(df, ['CondScr', 'SizeScr', 'MatScr'])
     df['SR_Present'], df['SR_Missing'], df['ConfSR'] = present, missing, conf_str
     df['SRNrm'] = normalize_minmax(df['SRScr'])
     df['SRQual'] = apply_jenks_classification(df['SRScr'])

@@ -98,7 +98,7 @@ def main():
         ],
         "Structural Risk": [
             "SADES_ID",
-            "StructCond", "UsHwCon", "DsHwCon", "UsSize", "CoverDepth", "StructMat",
+            "StructCond", "UsHwCon", "DsHwCon", "UsSize", "StructMat",
             "SRRank", "SRQual", "SRMSRank", "SRQualMS",         # NEW: SRMSRank, SRQualMS
             "ConfSR",
             "TotRank", "TotQual", "TotMSRank", "TotQualMS",     # NEW: TotMSRank, TotQualMS
@@ -140,7 +140,7 @@ def main():
             "FVRank", "FVQual", "FVMSRank", "FVQualMS",         # NEW: FVMSRank, FVQualMS
             "AADT", "MinDstImP", "FUNCT_SYST",
             "RCRank", "RCQual", "RCMSRank", "RCQualMS",         # NEW: RCMSRank, RCQualMS
-            "StructCond", "UsHwCon", "DsHwCon", "UsSize", "CoverDepth", "StructMat",
+            "StructCond", "UsHwCon", "DsHwCon", "UsSize", "StructMat",
             "SRRank", "SRQual", "SRMSRank", "SRQualMS",         # NEW: SRMSRank, SRQualMS
             "AOP_Score", "Sp_Sp_FG",
             "WLRank", "WLQual", "WLMSRank", "WLQualMS",         # NEW: WLMSRank, WLQualMS
@@ -263,7 +263,7 @@ def main():
                     "RCRank", "RCQual", "RCMSRank", "RCQualMS",         # NEW
                 ],
                 "Structural Risk": [
-                    "StructCond", "UsHwCon", "DsHwCon", "UsSize", "CoverDepth", "StructMat",
+                    "StructCond", "UsHwCon", "DsHwCon", "UsSize", "StructMat",
                     "SRRank", "SRQual", "SRMSRank", "SRQualMS",         # NEW
                 ],
                 "Wildlife Connectivity": [
