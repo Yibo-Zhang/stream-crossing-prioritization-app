@@ -62,7 +62,7 @@ def calculate_total_score(df, params):
     df['TotRank'] = df['TotScr'].rank(method='dense', ascending=False)
     df['RoundScore'] = df['TotScr'].round(2)
     
-    total_criterion_cols = ['HCScr', 'BlkFScr', 'ErosScr', 'GCScr', 'WQIScr', 'CondScr', 'SizeScr', 'DoCScr', 'MatScr',
+    total_criterion_cols = ['HCScr', 'BlkFScr', 'ErosScr', 'GCScr', 'WQIScr', 'CondScr', 'SizeScr', 'MatScr',
                            'AADTScr', 'DstIMPScr', 'FncSysScr', 'AOPScr', 'SpSpScr', 'HQScr', 'WtlndScr', 'CnsvStScr', 'EJScr']
     present, missing, conf_str = calculate_confidence(df, total_criterion_cols)
     df['Tot_Present'], df['Tot_Missing'], df['ConfTot'] = present, missing, conf_str

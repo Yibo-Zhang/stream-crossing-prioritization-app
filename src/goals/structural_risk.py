@@ -78,4 +78,7 @@ def calculate_sr(df, params):
     df['SRMSNrm'] = normalize_minmax(df['SRScrMS'])                        # NEW
     df['SRQualMS'] = apply_jenks_classification(df['SRScrMS'])             # NEW
 
+    # Drop raw input column — not included in output
+    df = df.drop(columns=['CoverDepth'], errors='ignore')
+
     return df
