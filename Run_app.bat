@@ -3,7 +3,6 @@ cd /d "C:\Users\ka1210\OneDrive - USNH\Desktop\Koorosh PhD research\NFWF\Code\Ve
 
 call venv\Scripts\activate
 
-python src\model.py --input data\input\crossings.csv --skip-validation
-python scripts\generate_excel_report.py
+streamlit run app.py
 
 pause

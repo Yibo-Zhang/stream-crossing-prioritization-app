@@ -190,61 +190,149 @@ def query_sades_photo_urls(sades_id, timeout=10):
         return []
 
 
-def build_map(boundaries_gdf=None, points_gdf=None, highlight_ids=None, results_df=None, score_col="TotQual"):
-    import folium
-    from folium.plugins import Draw
 
-    if points_gdf is not None and not points_gdf.empty:
-        bounds = points_gdf.total_bounds
-        center = [(bounds[1] + bounds[3]) / 2, (bounds[0] + bounds[2]) / 2]
+# --------------------------------------------------------------------------- #
+# Selection helpers (single-method region filtering)
+# --------------------------------------------------------------------------- #
+
+def get_ids_for_selection(method, value):
+    """SADES_IDs for a single chosen method ('town'|'county'|'huc12') and value.
+    None for other methods, a missing value, or missing layers."""
+    if not value:
+        return None
+    if method == "town":
+        return get_ids_in_town(value)
+    if method == "county":
+        return get_ids_in_county(value)
+    if method == "huc12":
+        return get_ids_in_huc12(value)
+    return None
+
+
+def get_boundary_feature(method, value):
+    """Single boundary feature (GeoDataFrame) for the chosen method/value,
+    used to outline and zoom the map. None if unavailable."""
+    if not value:
+        return None
+    if method == "town":
+        gdf, field = load_town_boundaries(), TOWN_NAME_FIELD
+    elif method == "county":
+        gdf, field = load_county_boundaries(), COUNTY_NAME_FIELD
+    elif method == "huc12":
+        gdf, field = load_huc12_boundaries(), HUC12_NAME_FIELD
+    else:
+        return None
+    if gdf is None or field not in gdf.columns:
+        return None
+    selected = gdf[gdf[field] == value]
+    return selected if not selected.empty else None
+
+
+# --------------------------------------------------------------------------- #
+# Map (display only, single GeoJSON layer)
+# --------------------------------------------------------------------------- #
+
+# Shared diverging priority palette (matches the table styling in app.py).
+QUAL_MAP_COLORS = {
+    "Very High": "#d73027",
+    "High": "#fc8d59",
+    "Moderate": "#fee08b",
+    "Low": "#91cf60",
+    "Very Low": "#1a9850",
+}
+UNSCORED_COLOR = "#3186cc"
+
+
+def build_map(points_gdf=None, active_boundary_gdf=None, highlight_ids=None,
+              results_df=None, score_col="TotQual"):
+    """Display-only folium map.
+
+    Only crossings present in ``results_df`` (i.e. the crossings the model
+    actually scored on the last run) are drawn, instead of the full SADES
+    inventory. Each point is colored by its Jenks priority class
+    (QUAL_MAP_COLORS), giving an unambiguous color mapping for the crossings
+    that were run. UNSCORED_COLOR is retained only as a defensive fallback
+    in case a row in results_df is missing a score.
+
+    All crossing points are added as ONE GeoJSON layer (with per-feature style
+    baked into feature properties), rather than one folium object per point.
+    This is the key performance change: folium builds each individual marker
+    through server-side template compilation, which is slow for thousands of
+    points, whereas a single GeoJSON layer is rendered client-side by Leaflet.
+    prefer_canvas=True further speeds Leaflet drawing.
+    """
+    import folium
+
+    highlight = set(highlight_ids) if highlight_ids is not None else None
+
+    if active_boundary_gdf is not None and not active_boundary_gdf.empty:
+        b = active_boundary_gdf.total_bounds
+        center = [(b[1] + b[3]) / 2, (b[0] + b[2]) / 2]
+    elif points_gdf is not None and not points_gdf.empty:
+        b = points_gdf.total_bounds
+        center = [(b[1] + b[3]) / 2, (b[0] + b[2]) / 2]
     else:
         center = [43.6, -71.5]  # roughly central New Hampshire
 
-    m = folium.Map(location=center, zoom_start=9, tiles="CartoDB positron")
+    m = folium.Map(location=center, zoom_start=9, tiles="CartoDB positron",
+                   control_scale=True, prefer_canvas=True)
 
-    if boundaries_gdf is not None and not boundaries_gdf.empty:
+    if active_boundary_gdf is not None and not active_boundary_gdf.empty:
         folium.GeoJson(
-            boundaries_gdf.to_json(),
-            name="Boundaries",
-            style_function=lambda x: {"color": "#555555", "weight": 1, "fillOpacity": 0.03},
+            active_boundary_gdf.to_json(),
+            name="Selected area",
+            style_function=lambda x: {
+                "color": "#14606C", "weight": 2,
+                "fill": True, "fillColor": "#1F8A9B", "fillOpacity": 0.06,
+            },
         ).add_to(m)
 
-    qual_colors = {
-        "Very High": "#d73027",
-        "High": "#fc8d59",
-        "Moderate": "#fee08b",
-        "Low": "#91cf60",
-        "Very Low": "#1a9850",
-    }
+    # Only draw crossings the model actually ran on, i.e. rows present in
+    # results_df. This satisfies "the map should only show crossings that
+    # the model ran" instead of showing the full unfiltered SADES inventory.
+    if (points_gdf is not None and not points_gdf.empty
+            and SADES_ID_FIELD in points_gdf.columns
+            and results_df is not None and SADES_ID_FIELD in results_df.columns):
+        ran_ids = set(results_df[SADES_ID_FIELD].astype(str))
+        gdf = points_gdf[[SADES_ID_FIELD, "geometry"]].copy()
+        gdf = gdf[gdf.geometry.notna() & ~gdf.geometry.is_empty]
+        gdf[SADES_ID_FIELD] = gdf[SADES_ID_FIELD].astype(str)
+        gdf = gdf[gdf[SADES_ID_FIELD].isin(ran_ids)]
 
-    if points_gdf is not None and not points_gdf.empty:
-        score_lookup = {}
-        if results_df is not None and score_col in results_df.columns and SADES_ID_FIELD in results_df.columns:
-            score_lookup = dict(zip(results_df[SADES_ID_FIELD].astype(str), results_df[score_col]))
+        if not gdf.empty:
+            if score_col in results_df.columns:
+                score_lookup = dict(zip(results_df[SADES_ID_FIELD].astype(str),
+                                         results_df[score_col]))
+                gdf["priority"] = gdf[SADES_ID_FIELD].map(score_lookup)
+            else:
+                gdf["priority"] = None
 
-        for _, row in points_gdf.iterrows():
-            sid = str(row.get(SADES_ID_FIELD, ""))
-            geom = row.geometry
-            if geom is None:
-                continue
-            qual = score_lookup.get(sid)
-            color = qual_colors.get(qual, "#3186cc")
-            in_selection = highlight_ids is None or sid in highlight_ids
-            folium.CircleMarker(
-                location=[geom.y, geom.x],
-                radius=5 if in_selection else 3,
-                color=color,
-                fill=True,
-                fill_color=color,
-                fill_opacity=0.9 if in_selection else 0.25,
-                opacity=0.9 if in_selection else 0.25,
-                popup=folium.Popup(f"SADES_ID: {sid}", max_width=200),
+            gdf["color"] = gdf["priority"].map(QUAL_MAP_COLORS).fillna(UNSCORED_COLOR)
+            if highlight is None:
+                gdf["opacity"] = 0.9
+            else:
+                gdf["opacity"] = gdf[SADES_ID_FIELD].isin(highlight).map({True: 0.9, False: 0.18})
+            gdf["label"] = gdf.apply(
+                lambda r: f"SADES_ID {r[SADES_ID_FIELD]}"
+                          + (f" ({r['priority']})" if pd.notna(r["priority"]) else ""),
+                axis=1,
+            )
+
+            folium.GeoJson(
+                gdf.to_json(),
+                name="Crossings",
+                marker=folium.CircleMarker(radius=6, weight=1, fill=True),
+                style_function=lambda feat: {
+                    "color": feat["properties"]["color"],
+                    "fillColor": feat["properties"]["color"],
+                    "fillOpacity": feat["properties"]["opacity"],
+                    "opacity": feat["properties"]["opacity"],
+                },
+                tooltip=folium.GeoJsonTooltip(fields=["label"], labels=False),
             ).add_to(m)
 
-    Draw(
-        export=False,
-        draw_options={"polyline": False, "circle": False, "marker": False, "circlemarker": False},
-        edit_options={"edit": True},
-    ).add_to(m)
+    if active_boundary_gdf is not None and not active_boundary_gdf.empty:
+        b = active_boundary_gdf.total_bounds
+        m.fit_bounds([[b[1], b[0]], [b[3], b[2]]])
 
     return m

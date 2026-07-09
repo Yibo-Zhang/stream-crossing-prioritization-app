@@ -1,0 +1,15 @@
+# Base theme for the Stream Crossing Prioritization app.
+# The riverine palette (deep slate ink, stream teal, cool sediment ground) is
+# applied here for native widgets; app.py injects matching CSS for the hero,
+# section markers, summary cards, and priority-colored table.
+
+[theme]
+base = "light"
+primaryColor = "#1F8A9B"
+backgroundColor = "#F4F6F5"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#0E2233"
+font = "sans serif"
+
+[server]
+maxUploadSize = 50

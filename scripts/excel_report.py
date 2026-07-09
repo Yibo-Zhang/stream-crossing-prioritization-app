@@ -17,7 +17,7 @@ def jenks_qual(series, labels=None, n_classes=5):
     if len(values) == 0:
         return pd.Series(index=series.index, dtype="object")
 
-    raw_breaks = jenkspy.jenks_breaks(values, nb_class=n_classes)
+    raw_breaks = jenkspy.jenks_breaks(values, n_classes=n_classes)  # jenkspy >= 0.3.0 renamed nb_class -> n_classes
     breaks = np.unique(raw_breaks)
     n_intervals = len(breaks) - 1
     use_labels = labels[:n_intervals]
