@@ -15,23 +15,32 @@ def calculate_wl(df, params):
     df['AOPScr'] = df['AOP_Score'].map(score_maps['aop'])
     df['SpSpScr'] = df['Sp_Sp_FG'].replace(0, np.nan)
     df['Sp_Sp_FG'] = df['Sp_Sp_FG'].map({1: 'Present', 0: np.nan})
-    
+    df['WlCoScr'] = df['WlCo']
+    df['WlCo'] = df['WlCo'].map({1: 'Wildlife Corridor ', 0: np.nan})
+
     df['SAOP'] = df['AOPScr'] * weights['aop']
     df['SSpSp'] = df['SpSpScr'] * weights['special_species']
+    df['SWlCo'] = df['WlCoScr'] * weights['terrestrial_organism_passage']
     
     def calc_wl_score(row):
-        if pd.isna(row['AOPScr']):
-            return np.nan
-        num = row['SAOP']
-        den = weights['aop']
-        if row['AOPScr'] > 0 and pd.notna(row['SpSpScr']):
-            num += row['SSpSp']
-            den += weights['special_species']
+        num = 0.0
+        den = 0.0
+        if pd.notna(row['AOPScr']):
+            num += row['SAOP']
+            den += weights['aop']
+            if row['AOPScr'] > 0 and pd.notna(row['SpSpScr']):
+                num += row['SSpSp']
+                den += weights['special_species']
+
+        if pd.notna(row['WlCoScr']):
+            num += row['SWlCo']
+            den += weights['terrestrial_organism_passage']
+
         return num / den if den > 0 else np.nan
     
     df['WLScr'] = df.apply(calc_wl_score, axis=1)
     df['WLRank'] = df['WLScr'].rank(method='dense', ascending=False)
-    present, missing, conf_str = calculate_confidence(df, ['AOPScr', 'SpSpScr'])
+    present, missing, conf_str = calculate_confidence(df, ['AOPScr', 'SpSpScr', 'WlCoScr'])
     df['WL_Present'], df['WL_Missing'], df['ConfWL'] = present, missing, conf_str
     df['WLNrm'] = normalize_minmax(df['WLScr'])
     df['WLQual'] = apply_jenks_classification(df['WLScr'])

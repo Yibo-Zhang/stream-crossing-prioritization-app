@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Stream Crossing Prioritization Model v1.7"""
+"""Stream Crossing Prioritization Model v1.8"""
 
 import argparse
 import timeit
@@ -62,8 +62,8 @@ def calculate_total_score(df, params):
     df['TotRank'] = df['TotScr'].rank(method='dense', ascending=False)
     df['RoundScore'] = df['TotScr'].round(2)
     
-    total_criterion_cols = ['HCScr', 'BlkFScr', 'ErosScr', 'GCScr', 'WQIScr', 'CondScr', 'SizeScr', 'MatScr',
-                           'AADTScr', 'DstIMPScr', 'FncSysScr', 'AOPScr', 'SpSpScr', 'HQScr', 'WtlndScr', 'CnsvStScr', 'EJScr']
+    total_criterion_cols = ['HCScr', 'BlkFScr', 'ErosScr', 'GCScr', 'WQIScr','WWQIScr', 'CondScr', 'SizeScr', 'MatScr',
+                           'AADTScr', 'DstIMPScr', 'FncSysScr', 'AOPScr', 'SpSpScr', 'WlCoScr', 'HQScr', 'WtlndScr', 'CnsvStScr', 'EJScr']
     present, missing, conf_str = calculate_confidence(df, total_criterion_cols)
     df['Tot_Present'], df['Tot_Missing'], df['ConfTot'] = present, missing, conf_str
     df['TotQual'] = apply_jenks_classification(df['TotScr'])
@@ -166,7 +166,7 @@ def save_results(df, output_dir):
         ],
         'wildlife_connectivity': [
             'SADES_ID',
-            'AOP_Score', 'Sp_Sp_FG',
+            'AOP_Score', 'Sp_Sp_FG','WlCo',
             'WLRank', 'WLQual', 'WLMSRank', 'WLQualMS',
             'ConfWL',
             'TotRank', 'TotQual', 'TotMSRank', 'TotQualMS',
@@ -182,7 +182,7 @@ def save_results(df, output_dir):
         ],
         'environmental_quality': [
             'SADES_ID',
-            'Erosion', 'GC_Score', 'Impair',
+            'Erosion', 'GC_Score', 'Impair','WImpair',
             'EQRank', 'EQQual', 'EQMSRank', 'EQQualMS',
             'ConfEQ',
             'TotRank', 'TotQual', 'TotMSRank', 'TotQualMS',
@@ -202,11 +202,11 @@ def save_results(df, output_dir):
             'RCRank', 'RCQual', 'RCMSRank', 'RCQualMS',
             'StructCond', 'UsHwCon', 'DsHwCon', 'UsSize', 'CoverDepth', 'StructMat',
             'SRRank', 'SRQual', 'SRMSRank', 'SRQualMS',
-            'AOP_Score', 'Sp_Sp_FG',
+            'AOP_Score', 'Sp_Sp_FG','WlCo',
             'WLRank', 'WLQual', 'WLMSRank', 'WLQualMS',
             'WAP_TIER', 'Wetlnd', 'ConsvStat',
             'HQGRank', 'HQGQual', 'HQGMSRank', 'HQGQualMS',
-            'Erosion', 'GC_Score', 'Impair',
+            'Erosion', 'GC_Score', 'Impair','WImpair',
             'EQRank', 'EQQual', 'EQMSRank', 'EQQualMS',
             'EJ', 'Cost',
             'ConfTot',

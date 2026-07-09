@@ -34,7 +34,8 @@
     },
     "wl": {
       "aop": 0.77892561983471,
-      "special_species": 0.728632478632478
+      "special_species": 0.728632478632478,
+      "terrestrial_organism_passage": 0.671487603305785
     },
     "hqg": {
       "habitat_quality": 0.694214876033057,

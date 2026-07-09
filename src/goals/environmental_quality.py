@@ -15,40 +15,40 @@ def calculate_erosion_score(df):
     Calculate erosion score from 9 erosion-related components.
     Returns mean of all available components (dynamic).
     """
+    def map_undermining_scour(value):
+        """Map undermining inventory value to erosion score.
+        'None' -> 0; any non-None undermining category -> 1; missing/blank -> NaN.
+        """
+        if pd.isna(value) or value == '':
+            return np.nan
+        if value == 'None':
+            return 0
+        return 1
+
     # Upstream Scour (Undermining Structure)
-    df['UsScourScr'] = df['UsUndermin'].map({
-        'None': np.nan,
-        'Footers': 1,
-        'Culvert': 1,
-        'Wing Walls': 1,
-        'Culvert and Footers': 1,
-        'Culvert and Wing Walls': 1,
-        'Footers and Wing Walls': 1,
-        'Abutments': 1,
-        'Culvert, Footers, and Wing Walls': 1
-    })
-    
+    df['UsScourScr'] = df['UsUndermin'].apply(map_undermining_scour)
+
     # Downstream Scour (Undermining Structure)
-    df['DsScourScr'] = df['DsUndermin'].map({
-        'None': np.nan,
-        'Footers': 1,
-        'Culvert': 1,
-        'Wing Walls': 1,
-        'Culvert and Footers': 1,
-        'Culvert and Wing Walls': 1,
-        'Footers and Wing Walls': 1,
-        'Abutments': 1,
-        'Culvert, Footers, and Wing Walls': 1
-    })
+    df['DsScourScr'] = df['DsUndermin'].apply(map_undermining_scour)
     
+
     # Structure Opening Mostly Obstructed
-    df['ObstrctScr'] = df['UsObstruct'].apply(
-        lambda x: 0 if pd.isna(x) or x in ['None', ''] else 1
-    )
+    def map_obstruction(value):
+        """Map obstruction value to erosion score.
+        'None' -> 0; any other value -> 1; missing/blank -> NaN.
+        """
+        if pd.isna(value) or value == '':
+            return np.nan
+        if value == 'None':
+            return 0
+        return 1
+
+    # Structure Opening Mostly Obstructed
+    df['ObstrctScr'] = df['UsObstruct'].apply(map_obstruction)
     
     # Scour of the Streambed at the Outlet
     df['ScourScr'] = df['OutScour'].map({
-        'None': np.nan,
+        'None': 0,
         'Low': 0.33,
         'Medium': 0.66,
         'High': 1
@@ -56,8 +56,8 @@ def calculate_erosion_score(df):
     
     # Structure Filled With Sediment
     df['SedFillScr'] = df['StructSed'].map({
-        'Open': np.nan,
-        '1/4 Full': np.nan,
+        'Open': 0,
+        '1/4 Full': 0,
         '1/2 Full': 0.33,
         '3/4 Full': 0.66,
         'High': 1
@@ -65,27 +65,27 @@ def calculate_erosion_score(df):
     
     # Upstream Bank Erosion
     df['UsBnkErScr'] = df['UsBankEros'].map({
-        'None': np.nan,
+        'None': 0,
         'Low': 0.5,
         'High': 1
     })
     
     # Downstream Bank Erosion
     df['DsBnkErScr'] = df['DsBankEros'].map({
-        'None': np.nan,
+        'None': 0,
         'Low': 0.5,
         'High': 1
     })
     
     # Upstream Bank Armoring
     df['UsArmScr'] = df['UsBankArmo'].map({
-        'Intact': np.nan,
+        'Intact': 0,
         'Failing': 1
     })
     
     # Downstream Bank Armoring
     df['DsArmScr'] = df['DsBankArmo'].map({
-        'Intact': np.nan,
+        'Intact': 0,
         'Failing': 1
     })
     
@@ -126,13 +126,18 @@ def calculate_eq(df, params):
     df['GCScr'] = df['GC_Score'].map(score_maps['geomorphic_compatibility'])
     
     # Water Quality Impairment
-    df['WQIScr'] = df['Impair'].replace(0, np.nan)
+    df['WQIScr'] = df['Impair']
     df['Impair'] = df['Impair'].map({1: 'Impaired', 0: np.nan})
-    
+
+    # Watershed Water Quality Impairment
+    df['WWQIScr'] = df['WWQI']
+    df['WImpair'] = df['WWQI'].map({1: 'Impaired', 0: np.nan})
+
     # Calculate weighted criterion scores
     df['SEros'] = df['ErosScr'] * weights['erosion']
     df['SGC'] = df['GCScr'] * weights['geomorphic_compatibility']
     df['SWQI'] = df['WQIScr'] * weights['water_quality']
+    df['SWWQI'] = df['WWQIScr'] * weights['water_quality']
     
     # Calculate EQ score dynamically
     # Special rule: WQI only included if there is erosion (SEros != 0)
@@ -152,6 +157,11 @@ def calculate_eq(df, params):
         if pd.notna(row['WQIScr']) and row['SEros'] != 0:
             num += row['SWQI']
             den += weights['water_quality']
+
+        # Only include WWQI if erosion score exists and is non-zero
+        if pd.notna(row['WWQIScr']) and row['SEros'] != 0:
+            num += row['SWWQI']
+            den += weights['water_quality']
         
         return num / den if den > 0 else np.nan
     
@@ -161,7 +171,7 @@ def calculate_eq(df, params):
     df['EQRank'] = df['EQScr'].rank(method='dense', ascending=False)
     
     # Calculate confidence
-    eq_cols = ['ErosScr', 'GCScr', 'WQIScr']
+    eq_cols = ['ErosScr', 'GCScr', 'WQIScr', 'WWQIScr']
     present, missing, conf_str = calculate_confidence(df, eq_cols)
     df['EQ_Present'] = present
     df['EQ_Missing'] = missing

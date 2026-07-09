@@ -12,13 +12,13 @@ from utils.scoring_utils import (
 def calculate_hqg(df, params):
     weights = params['criteria_weights']['hqg']
     
-    df['HQScr'] = df['HQ_WAP'].replace(0, np.nan)
+    df['HQScr'] = df['HQ_WAP']
     df['WAP_TIER'] = df['WAP_TIER'].replace(0, np.nan)
     
-    df['WtlndScr'] = df['Wetlnd'].replace(0, np.nan)
+    df['WtlndScr'] = df['Wetlnd']
     df['Wetlnd'] = df['Wetlnd'].map({1: 'Wetland Nearby', 0: np.nan})
     
-    df['CnsvStScr'] = df['ConsvStat'].replace(0, np.nan)
+    df['CnsvStScr'] = df['ConsvStat']
     df['ConsvStat'] = df['ConsvStat'].map({1: 'Conserved Land', 0: np.nan})
     
     df['SHQ'] = df['HQScr'] * weights['habitat_quality']

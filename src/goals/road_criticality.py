@@ -19,7 +19,7 @@ def calculate_distance_score(distance):
     elif 1.5 < distance <= 2:
         return 0.25
     else:
-        return np.nan
+        return 0
 
 def calculate_rc(df, params):
     weights = params['criteria_weights']['rc']
