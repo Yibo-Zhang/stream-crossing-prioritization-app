@@ -1,7 +1,15 @@
+streamlit>=1.35.0
 pandas>=2.0
 numpy>=1.24
 pyyaml>=6.0
 xlsxwriter>=3.1
 jenkspy>=0.4.1
+openpyxl>=3.1.0
+geopandas>=0.14.0
+shapely>=2.0.0
+folium>=0.15.0
+streamlit-folium>=0.20.0
+requests>=2.31.0
+pyogrio>=0.7.0
 pytest==7.4.0
 black==23.3.0

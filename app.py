@@ -9,11 +9,12 @@ import pandas as pd
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent / "scripts"))
 
 from model import run_analysis  # noqa: E402
 from utils.validation import validate_dataset  # noqa: E402
-from excel_report import build_excel_report  # noqa: E402
-import gis_utils  # noqa: E402
+from utils import gis_utils  # noqa: E402  (src/utils/gis_utils.py)
+from excel_report import build_excel_report  # noqa: E402  (scripts/excel_report.py)
 
 st.set_page_config(page_title="Stream Crossing Prioritization Model", layout="wide")
 

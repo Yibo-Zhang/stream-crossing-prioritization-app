@@ -2,6 +2,8 @@
 """GIS utilities: load boundary/HUC12/point GeoJSON layers, spatial filtering,
 and SADES photo lookup.
 
+Location in repo: src/utils/gis_utils.py
+
 Expected files in data/gis/ (produced by convert_shapefiles_to_geojson.py):
 
     data/gis/New_Hampshire_Political_Boundaries.geojson   (town boundaries; field "name")
@@ -21,7 +23,9 @@ import requests
 import streamlit as st
 from shapely.geometry import shape
 
-GIS_DIR = Path(__file__).parent / "data" / "gis"
+# This file now lives at src/utils/gis_utils.py, so the repo root is three
+# levels up: utils/ -> src/ -> repo root.
+GIS_DIR = Path(__file__).resolve().parents[2] / "data" / "gis"
 
 TOWN_BOUNDARY_PATH = GIS_DIR / "New_Hampshire_Political_Boundaries.geojson"
 COUNTY_BOUNDARY_PATH = GIS_DIR / "RPC_s_Regional_Planning_Commissions.geojson"
