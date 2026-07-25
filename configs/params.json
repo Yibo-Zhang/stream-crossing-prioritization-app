@@ -1,9 +1,8 @@
 {
-  "version": "1.8",
-  "description": "Stream Crossing Prioritization Model Parameters",
-  
+  "version": "Beta v2",
+  "description": "Stream Crossing Prioritization Model Parameters (Beta v2, built on the Pilot model)",
   "goal_weights": {
-    "flood_vulnerability": 0.87500000000,
+    "flood_vulnerability": 0.875,
     "environmental_quality": 0.781007751937984,
     "structural_risk": 0.763779527559055,
     "road_criticality": 0.740234375,
@@ -11,7 +10,6 @@
     "habitat_quality": 0.767441860465116,
     "environmental_justice": 0.533464566929133
   },
-  
   "criteria_weights": {
     "fv": {
       "hydraulic_capacity": 0.864754098360655,
@@ -20,7 +18,7 @@
     "eq": {
       "erosion": 0.800403225806451,
       "geomorphic_compatibility": 0.769067796610169,
-      "water_quality": 0.66250000
+      "water_quality": 0.6625
     },
     "sr": {
       "condition": 0.830645161290322,
@@ -38,12 +36,11 @@
       "terrestrial_organism_passage": 0.671487603305785
     },
     "hqg": {
-      "habitat_quality": 0.694214876033057,
-      "wetland_proximity": 0.7000000000000,
+      "habitat_condition_tier": 0.694214876033057,
+      "wetland_proximity": 0.7,
       "conservation_status": 0.619658119658119
     }
   },
-  
   "score_maps": {
     "condition": {
       "Poor": 1,
@@ -95,31 +92,70 @@
       "6": 1.1
     }
   },
-  
   "bins": {
-    "aadt": [0, 2000, 4000, 6000, 10000, 20000, 1000000000000],
-    "aadt_scores": [0.028, 0.111, 0.25, 0.444, 0.694, 1],
-    "size": [0, 7.068583, 12.5, 16, 38.5, 1000000000000],
-    "size_scores": [0, 0.02, 0.184, 0.51, 1]
+    "aadt": [
+      0,
+      2000,
+      4000,
+      6000,
+      10000,
+      20000,
+      1000000000000
+    ],
+    "aadt_scores": [
+      0.028,
+      0.111,
+      0.25,
+      0.444,
+      0.694,
+      1
+    ],
+    "size": [
+      0,
+      7.068583,
+      12.5,
+      16,
+      38.5,
+      1000000000000
+    ],
+    "size_scores": [
+      0,
+      0.02,
+      0.184,
+      0.51,
+      1
+    ]
   },
-  
   "constants": {
     "cpi": 1.235831737,
     "bankfull_multiplier": 1.2,
-    "base_cost_per_unit": 500
+    "base_cost_per_unit": 500,
+    "cost_round_base": 10000,
+    "cost_round_mode": "up"
   },
-  
   "validation": {
     "StructCond": {
-      "enum": ["Poor", "Fair", "Good"],
+      "enum": [
+        "Poor",
+        "Fair",
+        "Good"
+      ],
       "case_sensitive": false
     },
     "UsHwCon": {
-      "enum": ["Poor", "Fair", "Good"],
+      "enum": [
+        "Poor",
+        "Fair",
+        "Good"
+      ],
       "case_sensitive": false
     },
     "DsHwCon": {
-      "enum": ["Poor", "Fair", "Good"],
+      "enum": [
+        "Poor",
+        "Fair",
+        "Good"
+      ],
       "case_sensitive": false
     },
     "StructMat": {
@@ -185,35 +221,72 @@
       "case_sensitive": false
     },
     "OutScour": {
-      "enum": ["None", "Low", "Medium", "High"],
+      "enum": [
+        "None",
+        "Low",
+        "Medium",
+        "High"
+      ],
       "case_sensitive": false
     },
     "StructSed": {
-      "enum": ["Open", "1/4 Full", "1/2 Full", "3/4 Full", "High"],
+      "enum": [
+        "Open",
+        "1/4 Full",
+        "1/2 Full",
+        "3/4 Full",
+        "High"
+      ],
       "case_sensitive": false
     },
     "UsBankEros": {
-      "enum": ["None", "Low", "High"],
+      "enum": [
+        "None",
+        "Low",
+        "High"
+      ],
       "case_sensitive": false
     },
     "DsBankEros": {
-      "enum": ["None", "Low", "High"],
+      "enum": [
+        "None",
+        "Low",
+        "High"
+      ],
       "case_sensitive": false
     },
     "UsBankArmo": {
-      "enum": ["Intact", "Failing"],
+      "enum": [
+        "Intact",
+        "Failing"
+      ],
       "case_sensitive": false
     },
     "DsBankArmo": {
-      "enum": ["Intact", "Failing"],
+      "enum": [
+        "Intact",
+        "Failing"
+      ],
       "case_sensitive": false
     },
     "AADT": {
       "type": "numeric",
-      "range": [0, 1000000000000]
+      "range": [
+        0,
+        1000000000000
+      ]
     },
     "FUNCT_SYST": {
-      "enum": [0, 1, 2, 3, 4, 5, 6, 7]
+      "enum": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
     }
   }
 }

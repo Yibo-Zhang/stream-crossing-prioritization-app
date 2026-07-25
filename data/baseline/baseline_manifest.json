@@ -1,0 +1,52 @@
+{
+  "model_version": "Beta v2",
+  "built_utc": "2026-07-25T00:02:47+00:00",
+  "input_file": "crossings.csv",
+  "input_sha256": "3e8bdf27419b2bee8d92edc01f1dcb8dc2a005237cad461a14208b97c4c6083d",
+  "input_records": 5592,
+  "params_file": "params.json",
+  "params_version": "Beta v2",
+  "goal_weights": {
+    "flood_vulnerability": 0.875,
+    "environmental_quality": 0.781007751937984,
+    "structural_risk": 0.763779527559055,
+    "road_criticality": 0.740234375,
+    "wildlife_connectivity": 0.767441860465116,
+    "habitat_quality": 0.767441860465116,
+    "environmental_justice": 0.533464566929133
+  },
+  "criteria_weights": {
+    "fv": {
+      "hydraulic_capacity": 0.864754098360655,
+      "flooding_history": 0.804878048780487
+    },
+    "eq": {
+      "erosion": 0.800403225806451,
+      "geomorphic_compatibility": 0.769067796610169,
+      "water_quality": 0.6625
+    },
+    "sr": {
+      "condition": 0.830645161290322,
+      "size": 0.770491803278688,
+      "material": 0.558943089430894
+    },
+    "rc": {
+      "aadt": 0.591880341880341,
+      "distance_to_services": 0.579059829059829,
+      "functional_classification": 0.537280701754385
+    },
+    "wl": {
+      "aop": 0.77892561983471,
+      "special_species": 0.728632478632478,
+      "terrestrial_organism_passage": 0.671487603305785
+    },
+    "hqg": {
+      "habitat_condition_tier": 0.694214876033057,
+      "wetland_proximity": 0.7,
+      "conservation_status": 0.619658119658119
+    }
+  },
+  "output_file": "baseline_all.csv.gz",
+  "output_records": 5592,
+  "output_columns": 348
+}

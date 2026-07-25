@@ -16,7 +16,7 @@ def calculate_wl(df, params):
     df['SpSpScr'] = df['Sp_Sp_FG'].replace(0, np.nan)
     df['Sp_Sp_FG'] = df['Sp_Sp_FG'].map({1: 'Present', 0: np.nan})
     df['WlCoScr'] = df['WlCo']
-    df['WlCo'] = df['WlCo'].map({1: 'Wildlife Corridor ', 0: np.nan})
+    df['WlCo'] = df['WlCo'].map({1: 'Wildlife Corridor', 0: np.nan})
 
     df['SAOP'] = df['AOPScr'] * weights['aop']
     df['SSpSp'] = df['SpSpScr'] * weights['special_species']

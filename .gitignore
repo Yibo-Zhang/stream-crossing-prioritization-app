@@ -41,11 +41,23 @@ wheels/
 *.xlsx
 *.xls
 *.csv
-
 data/input/*
 data/output/*
 !data/input/.gitkeep
 !data/output/.gitkeep
+
+# Beta v2: bundle the demo dataset and the committed baseline.
+# These negations must come AFTER the data/input and *.csv rules above, or the
+# broader rules win. The baseline is stored gzip-compressed so it is not caught
+# by the *.csv rule; it is force-listed here for clarity.
+!data/input/crossings.csv
+!data/baseline/
+!data/baseline/baseline_all.csv.gz
+!data/baseline/baseline_manifest.json
+
+# configs/metadata.csv holds the workbook header definitions and must be tracked
+# despite the *.csv rule above.
+!configs/metadata.csv
 
 # Test coverage
 .coverage

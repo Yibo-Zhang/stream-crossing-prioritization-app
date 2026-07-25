@@ -1,0 +1,212 @@
+Field,Goal,Description
+SADES_ID,Identification,Unique crossing identifier from the Statewide Asset Data Exchange System (SADES). Used as the join key across every sheet and against the Beta v2 baseline.
+Location,Identification,"Plain-language location label built as 'stream at road, town' from StreamName, RoadNameF (or STREET) and Town. Where the stream is unnamed in SADES the label reads 'Unnamed stream'."
+Landowner,Identification,"Road owner or maintaining authority, copied from the OWNERSHIP_ field of the NHDOT road inventory (for example TOWN, PRIVATE, DISTRICT 6)."
+Town,Identification,Municipality recorded during the SADES field assessment.
+TOWN_NAME,Identification,Municipality from the NHDOT road inventory join.
+StreamName,Identification,"Named water body at the crossing, where one is recorded in SADES."
+RoadNameF,Identification,Road name recorded during the SADES field assessment.
+RoadNameA,Identification,Alternate road name recorded during the SADES field assessment.
+STREET,Identification,Road name from the NHDOT road inventory join.
+OWNERSHIP_,Identification,Road ownership description from the NHDOT road inventory. Source field for Landowner.
+HC_2yr,Flood Vulnerability,"Hydraulic capacity status at the 2-year return period: Overtop, Vulnerable, or Pass."
+HC_10yr,Flood Vulnerability,"Hydraulic capacity status at the 10-year return period: Overtop, Vulnerable, or Pass."
+HC_25yr,Flood Vulnerability,"Hydraulic capacity status at the 25-year return period: Overtop, Vulnerable, or Pass."
+HC_50yr,Flood Vulnerability,"Hydraulic capacity status at the 50-year return period: Overtop, Vulnerable, or Pass."
+HC_100yr,Flood Vulnerability,"Hydraulic capacity status at the 100-year return period: Overtop, Vulnerable, or Pass."
+HCScr,Flood Vulnerability,"Hydraulic capacity score, 0 to 1. Maximum sub-score across the available return periods, so the worst failure mode governs. Overtop and Vulnerable at a more frequent event score higher. Pass scores 0. NaN only where no hydraulic capacity data exist, for example wetland crossings."
+BlckFlg,Flood Vulnerability,Documented flooding history flag (black flag). Displayed as 'Flooded' where a flood record is present. Points are centroids of flooded-area polygons from NH Town Hazard Mitigation Plans snapped to the nearest stream-road crossing within 500 ft.
+BlkFScr,Flood Vulnerability,"Flooding history score. 1 where flooding is documented; NaN where no record exists, because an unlabeled crossing may lack documentation rather than lack flood risk."
+SHC,Flood Vulnerability,Hydraulic capacity score multiplied by its criterion weight.
+SBlkF,Flood Vulnerability,Flooding history score multiplied by its criterion weight.
+FVScr,Flood Vulnerability,"Flood Vulnerability goal score, 0 to 1. Dynamic weighted average of the available criterion scores."
+FVNrm,Flood Vulnerability,Flood Vulnerability goal score after min-max normalization to 0 to 1 across the crossings in the run.
+FVRank,Flood Vulnerability,"Dense rank on FVScr, 1 = highest priority. Retained in All Results only; the goal sheets report the mean-substituted rank."
+FVQual,Flood Vulnerability,"Jenks natural-breaks class of FVScr, Very Low to Very High. Retained in All Results only."
+FV_Present,Flood Vulnerability,Count of Flood Vulnerability criteria with data for this crossing.
+FV_Missing,Flood Vulnerability,Count of Flood Vulnerability criteria without data for this crossing.
+ConfFV,Flood Vulnerability,"Data completeness for Flood Vulnerability, reported as 'present of total' criteria. A score built on few criteria is less reliable than one built on all of them."
+FVScrMS,Flood Vulnerability,Mean-substituted Flood Vulnerability score. Missing goal scores are filled with the mean of the non-missing goal scores before ranking and classification.
+FVMSRank,Flood Vulnerability,"Dense rank on FVScrMS, 1 = highest priority. This is the rank reported in the Beta v2 workbook."
+FVMSNrm,Flood Vulnerability,FVScrMS after min-max normalization to 0 to 1 across the crossings in the run.
+FVQualMS,Flood Vulnerability,"Jenks natural-breaks class of FVScrMS, Very Low to Very High. This is the class reported in the Beta v2 workbook."
+UsUndermin,Environmental Quality,"Upstream undermining inventory (None, Footers, Culvert, Wing Walls, Abutments, and combinations)."
+DsUndermin,Environmental Quality,"Downstream undermining inventory (None, Footers, Culvert, Wing Walls, Abutments, and combinations)."
+UsObstruct,Environmental Quality,Obstruction of the structure opening recorded in the field.
+OutScour,Environmental Quality,"Scour of the streambed at the outlet: None, Low, Medium, or High."
+StructSed,Environmental Quality,"Extent to which the structure is filled with sediment: Open, 1/4 Full, 1/2 Full, 3/4 Full, or High."
+UsBankEros,Environmental Quality,"Upstream bank erosion: None, Low, or High."
+DsBankEros,Environmental Quality,"Downstream bank erosion: None, Low, or High."
+UsBankArmo,Environmental Quality,Upstream bank armoring: Intact or Failing.
+DsBankArmo,Environmental Quality,Downstream bank armoring: Intact or Failing.
+UsScourScr,Environmental Quality,Upstream undermining scour score. None scores 0; any undermining category scores 1; blank is NaN. Severity gradation within the undermining categories is not retained.
+DsScourScr,Environmental Quality,Downstream undermining scour score. None scores 0; any undermining category scores 1; blank is NaN.
+ObstrctScr,Environmental Quality,Opening obstruction score. None scores 0; any other recorded value scores 1; blank is NaN.
+ScourScr,Environmental Quality,"Outlet streambed scour score. None 0, Low 0.33, Medium 0.66, High 1; blank is NaN."
+SedFillScr,Environmental Quality,"Sediment fill score. Open and 1/4 Full score 0, 1/2 Full 0.33, 3/4 Full 0.66, High 1; blank is NaN."
+UsBnkErScr,Environmental Quality,"Upstream bank erosion score. None 0, Low 0.5, High 1; blank is NaN."
+DsBnkErScr,Environmental Quality,"Downstream bank erosion score. None 0, Low 0.5, High 1; blank is NaN."
+UsArmScr,Environmental Quality,"Upstream bank armoring score. Intact 0, Failing 1; blank is NaN."
+DsArmScr,Environmental Quality,"Downstream bank armoring score. Intact 0, Failing 1; blank is NaN."
+ErosScr,Environmental Quality,"Erosion criterion score, 0 to 1. Arithmetic mean of the nine erosion components that have data; components without data are skipped."
+Erosion,Environmental Quality,"Jenks natural-breaks class of ErosScr, Very Low to Very High."
+GC_Score,Environmental Quality,"Geomorphic compatibility category recorded in the field: Fully Compatible, Mostly Compatible, Partially Compatible, Mostly Incompatible, or Fully Incompatible."
+GCScr,Environmental Quality,"Geomorphic compatibility score. Fully Compatible 0, Mostly Compatible 0.25, Partially Compatible 0.50, Mostly Incompatible 0.75, Fully Incompatible 1. NaN only where no geomorphic compatibility data exist."
+Impair,Environmental Quality,"Reach-scale water quality impairment flag, displayed as 'Impaired'. Built from the NHDES Surface Water Quality Assessment, integrated reporting categories 4 and 5, for eight nutrient and eutrophication parameters."
+WQIScr,Environmental Quality,"Water quality impairment score. Impaired 1, not impaired 0. A crossing that is not flagged corresponds to a water body evaluated and found not to meet the impairment filter, so 0 is a determined absence rather than missing data."
+WWQI,Environmental Quality,Watershed water quality impairment flag. 1 where the crossing falls inside a HUC12-clipped impaired lake or impoundment watershed.
+WImpair,Environmental Quality,"Display form of WWQI, shown as 'Impaired' where the crossing falls inside an impaired watershed."
+WWQIScr,Environmental Quality,"Watershed water quality impairment score. Inside an impaired HUC12-clipped watershed 1, otherwise 0. New criterion in the Pilot and Beta v2 models."
+AUIDs,Environmental Quality,"Assessment unit identifiers of the impaired water bodies intersecting the crossing, carried as a reference attribute."
+Impairmnts,Environmental Quality,"Impaired parameters recorded for the intersecting assessment units, carried as a reference attribute."
+SEros,Environmental Quality,Erosion score multiplied by its criterion weight.
+SGC,Environmental Quality,Geomorphic compatibility score multiplied by its criterion weight.
+SWQI,Environmental Quality,Water quality impairment score multiplied by its criterion weight.
+SWWQI,Environmental Quality,Watershed water quality impairment score multiplied by the water quality criterion weight.
+EQScr,Environmental Quality,"Environmental Quality goal score, 0 to 1. Dynamic weighted average of erosion and geomorphic compatibility, with the two water quality criteria admitted only when the erosion score is positive."
+EQNrm,Environmental Quality,Environmental Quality goal score after min-max normalization across the crossings in the run.
+EQRank,Environmental Quality,"Dense rank on EQScr, 1 = highest priority. Retained in All Results only."
+EQQual,Environmental Quality,Jenks natural-breaks class of EQScr. Retained in All Results only.
+EQ_Present,Environmental Quality,Count of Environmental Quality criteria with data for this crossing.
+EQ_Missing,Environmental Quality,Count of Environmental Quality criteria without data for this crossing.
+ConfEQ,Environmental Quality,"Data completeness for Environmental Quality, reported as 'present of total' criteria."
+EQScrMS,Environmental Quality,Mean-substituted Environmental Quality score.
+EQMSRank,Environmental Quality,"Dense rank on EQScrMS, 1 = highest priority."
+EQMSNrm,Environmental Quality,EQScrMS after min-max normalization across the crossings in the run.
+EQQualMS,Environmental Quality,"Jenks natural-breaks class of EQScrMS, Very Low to Very High."
+StructCond,Structural Risk,"Condition of the structure recorded in the field: Poor, Fair, or Good."
+UsHwCon,Structural Risk,"Condition of the inlet (upstream) headwall: Poor, Fair, or Good."
+DsHwCon,Structural Risk,"Condition of the outlet (downstream) headwall: Poor, Fair, or Good."
+StrConScr,Structural Risk,"Structure condition score. Poor 1, Fair 0.5, Good 0."
+InConScr,Structural Risk,"Inlet headwall condition score. Poor 1, Fair 0.5, Good 0."
+OutConScr,Structural Risk,"Outlet headwall condition score. Poor 1, Fair 0.5, Good 0."
+CondScr,Structural Risk,"Combined condition score. With all three present, 0.5 structure plus 0.3 inlet plus 0.2 outlet; with two present the weights are renormalized; with one present that value is used directly."
+StructType,Structural Risk,Structure type recorded in the field. Round Culvert triggers the circular opening-area formula.
+UsWidth,Structural Risk,"Upstream structure width, feet."
+UsOpenHght,Structural Risk,"Upstream structure opening height, feet."
+UsSize,Structural Risk,"Upstream opening area, square feet. Computed as pi/4 times width squared for round culverts and width times opening height otherwise. A computed area of 0 is treated as NaN because a zero opening is physically infeasible."
+SizeScr,Structural Risk,Size score from binned opening area. Over 0 to 7.07 sq ft scores 0; over 7.07 to 12.5 scores 0.02; over 12.5 to 16 scores 0.184; over 16 to 38.5 scores 0.51; over 38.5 scores 1. The 7.07 sq ft break is the area of a 3 ft diameter round culvert.
+StructMat,Structural Risk,Construction material of the structure.
+MatScr,Structural Risk,"Material score. Steel-Corrugated, Steel-Smooth and Aluminum-Corrugated score 1; Masonry and Stone 0.25; Concrete 0.111; Plastic-Corrugated and Plastic-Smooth 0.028; Other and Wood 0."
+CoverDepth,Structural Risk,"Depth of soil cover over the structure, feet. Retained as a field attribute only. The depth of cover criterion was removed from Structural Risk in the Pilot model and is not scored."
+SCond,Structural Risk,Condition score multiplied by its criterion weight.
+SSize,Structural Risk,Size score multiplied by its criterion weight.
+SMat,Structural Risk,Material score multiplied by its criterion weight.
+SRScr,Structural Risk,"Structural Risk goal score, 0 to 1. When the condition score is present and greater than 0, condition, size and material all enter the dynamic weighted average. When the condition score is 0 (Good) or missing, size is dropped."
+SRNrm,Structural Risk,Structural Risk goal score after min-max normalization across the crossings in the run.
+SRRank,Structural Risk,"Dense rank on SRScr, 1 = highest priority. Retained in All Results only."
+SRQual,Structural Risk,Jenks natural-breaks class of SRScr. Retained in All Results only.
+SR_Present,Structural Risk,Count of Structural Risk criteria with data for this crossing.
+SR_Missing,Structural Risk,Count of Structural Risk criteria without data for this crossing.
+ConfSR,Structural Risk,"Data completeness for Structural Risk, reported as 'present of total' criteria."
+SRScrMS,Structural Risk,Mean-substituted Structural Risk score.
+SRMSRank,Structural Risk,"Dense rank on SRScrMS, 1 = highest priority."
+SRMSNrm,Structural Risk,SRScrMS after min-max normalization across the crossings in the run.
+SRQualMS,Structural Risk,"Jenks natural-breaks class of SRScrMS, Very Low to Very High."
+AADT,Road Criticality,"Annual average daily traffic on the road segment carrying the crossing, from the NHDOT road inventory."
+AADTScr,Road Criticality,"AADT score from left-closed bins. Under 2,000 scores 0.028; 2,000 to 4,000 scores 0.111; 4,000 to 6,000 scores 0.25; 6,000 to 10,000 scores 0.444; 10,000 to 20,000 scores 0.694; 20,000 and above scores 1."
+Dst_Hsptl,Road Criticality,"Distance from the crossing to the nearest hospital, miles."
+Dst_EMS,Road Criticality,"Distance from the crossing to the nearest emergency medical service, miles."
+Dst_LawEn,Road Criticality,"Distance from the crossing to the nearest law enforcement facility, miles."
+Dst_Fire,Road Criticality,"Distance from the crossing to the nearest fire station, miles."
+MinDstImP,Road Criticality,"Minimum of the four distances to important services, miles."
+DstIMPScr,Road Criticality,Distance to important services score. 0 to 0.5 miles scores 1; over 0.5 to 1 scores 0.75; over 1 to 1.5 scores 0.5; over 1.5 to 2 scores 0.25; over 2 scores 0. Crossings beyond 2 miles are scored rather than excluded.
+FUNCT_SYST,Road Criticality,"FHWA functional classification of the road carried by the crossing. 1 Interstate, 2 Other Freeways and Expressways, 3 Other Principal Arterial, 4 Minor Arterial, 5 Major Collector, 6 Minor Collector, 7 Local, 0 unclassified."
+FncSysScr,Road Criticality,Functional classification score. Class 1 scores 1; 2 scores 0.833; 3 scores 0.667; 4 scores 0.5; 5 scores 0.33; 6 scores 0.167; 7 and 0 score 0.
+SAADT,Road Criticality,AADT score multiplied by its criterion weight.
+SDstIMP,Road Criticality,Distance to services score multiplied by its criterion weight.
+SFncSys,Road Criticality,Functional classification score multiplied by its criterion weight.
+RCScr,Road Criticality,"Road Criticality goal score, 0 to 1. Dynamic weighted average of the available criterion scores."
+RCNrm,Road Criticality,Road Criticality goal score after min-max normalization across the crossings in the run.
+RCRank,Road Criticality,"Dense rank on RCScr, 1 = highest priority. Retained in All Results only."
+RCQual,Road Criticality,Jenks natural-breaks class of RCScr. Retained in All Results only.
+RC_Present,Road Criticality,Count of Road Criticality criteria with data for this crossing.
+RC_Missing,Road Criticality,Count of Road Criticality criteria without data for this crossing.
+ConfRC,Road Criticality,"Data completeness for Road Criticality, reported as 'present of total' criteria."
+RCScrMS,Road Criticality,Mean-substituted Road Criticality score.
+RCMSRank,Road Criticality,"Dense rank on RCScrMS, 1 = highest priority."
+RCMSNrm,Road Criticality,RCScrMS after min-max normalization across the crossings in the run.
+RCQualMS,Road Criticality,"Jenks natural-breaks class of RCScrMS, Very Low to Very High."
+AOP_Score,Wildlife Connectivity,"Aquatic organism passage category assessed in the field: Full Passage, Reduced Passage, Passage only for Adult Trout, or No Passage."
+AOPScr,Wildlife Connectivity,"Aquatic organism passage score. Full Passage 0, Reduced Passage 0.33, Passage only for Adult Trout 0.66, No Passage 1. NaN only where no AOP data exist."
+Sp_Sp_FG,Wildlife Connectivity,"Special species presence flag, displayed as 'Present'. Source: NH Fish and Game, six priority fish species (American Brook Lamprey, American Shad, River Herring, Sea Lamprey, wild Eastern Brook Trout, Red-fin Pickerel)."
+SpSpScr,Wildlife Connectivity,"Special species score. Confirmed presence scores 1; absence is NaN, because absence of a record more plausibly reflects incomplete survey coverage than confirmed absence. Admitted to the goal score only when the AOP score is greater than 0."
+WlCo,Wildlife Connectivity,"Wildlife corridor flag, displayed as 'Wildlife Corridor'. Point-in-polygon containment against the NH Fish and Game statewide wildlife connectivity model."
+WlCoScr,Wildlife Connectivity,"Wildlife corridor score. Inside a mapped corridor 1, otherwise 0. Because the corridor layer is a statewide modeled product, a 0 is a determined absence rather than missing data. New criterion in the Pilot and Beta v2 models."
+SAOP,Wildlife Connectivity,Aquatic organism passage score multiplied by its criterion weight.
+SSpSp,Wildlife Connectivity,Special species score multiplied by its criterion weight.
+SWlCo,Wildlife Connectivity,Wildlife corridor score multiplied by the terrestrial organism passage criterion weight.
+WLScr,Wildlife Connectivity,"Wildlife Connectivity goal score, 0 to 1. Dynamic weighted average of aquatic organism passage, special species (only when AOP is greater than 0), and wildlife corridor."
+WLNrm,Wildlife Connectivity,Wildlife Connectivity goal score after min-max normalization across the crossings in the run.
+WLRank,Wildlife Connectivity,"Dense rank on WLScr, 1 = highest priority. Retained in All Results only."
+WLQual,Wildlife Connectivity,Jenks natural-breaks class of WLScr. Retained in All Results only.
+WL_Present,Wildlife Connectivity,Count of Wildlife Connectivity criteria with data for this crossing.
+WL_Missing,Wildlife Connectivity,Count of Wildlife Connectivity criteria without data for this crossing.
+ConfWL,Wildlife Connectivity,"Data completeness for Wildlife Connectivity, reported as 'present of total' criteria."
+WLScrMS,Wildlife Connectivity,Mean-substituted Wildlife Connectivity score.
+WLMSRank,Wildlife Connectivity,"Dense rank on WLScrMS, 1 = highest priority."
+WLMSNrm,Wildlife Connectivity,WLScrMS after min-max normalization across the crossings in the run.
+WLQualMS,Wildlife Connectivity,"Jenks natural-breaks class of WLScrMS, Very Low to Very High."
+WAP_TIER,Habitat Quality,"Habitat condition tier of the highest-ranked habitat polygon within 100 ft of the crossing, from the 2020 NH Wildlife Action Plan. Tier 1 highest ranked in the state, Tier 2 highest ranked in the biological region, Tier 3 supporting landscape. A tier of 0 (outside any ranked tier) is shown blank."
+HQ_WAP,Habitat Quality,"Numeric habitat condition tier value used as the criterion input. Tier 1 is 1.0, Tier 2 is 0.66, Tier 3 is 0.33, outside any ranked tier is 0."
+HCTScr,Habitat Quality,"Habitat Condition Tier criterion score, 0 to 1, taken from HQ_WAP. Renamed from habitat quality in the Pilot model to distinguish the criterion from the Habitat Quality goal. Outside any ranked tier is a real 0, since the Wildlife Action Plan ranking is statewide."
+Wetlnd,Habitat Quality,"Wetland proximity flag, displayed as 'Wetland Nearby'. A wetland from the National Wetlands Inventory (Riverine excluded) lies within 100 ft of the crossing."
+WtlndScr,Habitat Quality,"Wetland proximity score. Wetland within 100 ft scores 1, no qualifying wetland within 100 ft scores 0. Every crossing is checked against the same statewide layer, so 0 is a determined absence."
+ConsvStat,Habitat Quality,"Conservation status flag, displayed as 'Conserved Land'. Conserved or public land from the NH GRANIT Conservation/Public Lands layer lies within 100 ft of the crossing."
+CnsvStScr,Habitat Quality,"Conservation status score. Conserved land within 100 ft scores 1, none within 100 ft scores 0. Every crossing is checked against the same statewide layer, so 0 is a determined absence."
+PPtype,Habitat Quality,Primary protection type of the nearby conserved land parcel.
+PPTerm,Habitat Quality,Term of protection of the nearby conserved land parcel.
+SHCT,Habitat Quality,Habitat Condition Tier score multiplied by its criterion weight.
+SWtlnd,Habitat Quality,Wetland proximity score multiplied by its criterion weight.
+SCnsvSt,Habitat Quality,Conservation status score multiplied by its criterion weight.
+HQGScr,Habitat Quality,"Habitat Quality goal score, 0 to 1. Dynamic weighted average of Habitat Condition Tier, wetland proximity, and conservation status."
+HQGNrm,Habitat Quality,Habitat Quality goal score after min-max normalization across the crossings in the run.
+HQGRank,Habitat Quality,"Dense rank on HQGScr, 1 = highest priority. Retained in All Results only."
+HQGQual,Habitat Quality,Jenks natural-breaks class of HQGScr. Retained in All Results only.
+HQG_Present,Habitat Quality,Count of Habitat Quality criteria with data for this crossing.
+HQG_Missing,Habitat Quality,Count of Habitat Quality criteria without data for this crossing.
+ConfHQG,Habitat Quality,"Data completeness for Habitat Quality, reported as 'present of total' criteria."
+HQGScrMS,Habitat Quality,Mean-substituted Habitat Quality score.
+HQGMSRank,Habitat Quality,"Dense rank on HQGScrMS, 1 = highest priority."
+HQGMSNrm,Habitat Quality,HQGScrMS after min-max normalization across the crossings in the run.
+HQGQualMS,Habitat Quality,"Jenks natural-breaks class of HQGScrMS, Very Low to Very High."
+EJScr,Environmental Justice,"Environmental justice score. 1 where the crossing lies inside a disadvantaged community identified by the federal Climate and Economic Justice Screening Tool (CEJST), otherwise 0. Enters the total score as a raw binary value and is not normalized or independently classified."
+EJ,Environmental Justice,"Display form of EJScr, shown as 'disadvantaged' where the crossing lies inside a CEJST-identified disadvantaged community."
+SEJ,Environmental Justice,Environmental justice score multiplied by the Environmental Justice goal weight.
+SEJMS,Environmental Justice,Environmental justice score multiplied by the Environmental Justice goal weight in the mean-substituted total.
+TIER,Economic Impact,"NHDOT road tier of the segment carrying the crossing, used to set the construction cost multiplier."
+TIER_DESCR,Economic Impact,Text description of the NHDOT road tier.
+CstMult,Economic Impact,"Cost multiplier by NHDOT road tier. Tiers 1 and 2 use 2.0, Tier 3 uses 1.8, Tier 4 uses 1.2, Tier 5 uses 1.0, Tier 6 uses 1.1, Tier 0 uses 1.0."
+ChanBFW1,Economic Impact,"First channel bankfull width measurement, feet."
+ChanBFW2,Economic Impact,"Second channel bankfull width measurement, feet."
+ChanBFW3,Economic Impact,"Third channel bankfull width measurement, feet."
+AvgBFW,Economic Impact,"Mean of the three channel bankfull width measurements, feet."
+ReqWidth,Economic Impact,"Required replacement structure width, feet, computed as 1.2 times the average bankfull width plus 2."
+StructLen,Economic Impact,"Length of the existing structure, feet."
+Cost,Economic Impact,"Unrounded planning-level replacement cost estimate, dollars. Computed as CPI times base cost per unit area times structure length times required width times the cost multiplier. A computed cost of 0 is treated as missing."
+CostEstimate,Economic Impact,"Planning-level replacement cost estimate rounded for reporting, dollars. Rounding base and direction are set in configs/params.json. This is a screening figure and is not a substitute for a project cost estimate. Cost is reported alongside the priority results and does not enter the priority score."
+SFV,Total Score,Normalized Flood Vulnerability score multiplied by the Flood Vulnerability goal weight.
+SEQ,Total Score,Normalized Environmental Quality score multiplied by the Environmental Quality goal weight.
+SSR,Total Score,Normalized Structural Risk score multiplied by the Structural Risk goal weight.
+SRC,Total Score,Normalized Road Criticality score multiplied by the Road Criticality goal weight.
+SWL,Total Score,Normalized Wildlife Connectivity score multiplied by the Wildlife Connectivity goal weight.
+SHQG,Total Score,Normalized Habitat Quality score multiplied by the Habitat Quality goal weight.
+TotScr,Total Score,"Total crossing score, 0 to 1. Dynamic weighted average of the normalized goal scores, with Environmental Justice entering as a raw binary value. Retained in All Results only."
+TotRank,Total Score,"Dense rank on TotScr, 1 = highest priority. Retained in All Results only."
+RoundScore,Total Score,TotScr rounded to two decimal places. Retained in All Results only.
+TotQual,Total Score,Jenks natural-breaks class of TotScr. Retained in All Results only.
+Tot_Present,Total Score,Count of criteria with data for this crossing across all goals.
+Tot_Missing,Total Score,Count of criteria without data for this crossing across all goals.
+ConfTot,Total Score,"Overall data completeness, reported as 'present of total' criteria across all goals. A rank built on 2 of 19 criteria is far less reliable than one built on 17 of 19."
+SFVMS,Total Score,Normalized mean-substituted Flood Vulnerability score multiplied by the Flood Vulnerability goal weight.
+SEQMS,Total Score,Normalized mean-substituted Environmental Quality score multiplied by the Environmental Quality goal weight.
+SSRMS,Total Score,Normalized mean-substituted Structural Risk score multiplied by the Structural Risk goal weight.
+SRCMS,Total Score,Normalized mean-substituted Road Criticality score multiplied by the Road Criticality goal weight.
+SWLMS,Total Score,Normalized mean-substituted Wildlife Connectivity score multiplied by the Wildlife Connectivity goal weight.
+SHQGMS,Total Score,Normalized mean-substituted Habitat Quality score multiplied by the Habitat Quality goal weight.
+TotScrMS,Total Score,"Mean-substituted total crossing score, 0 to 1. Built from the mean-substituted goal scores, so a crossing missing a goal score is not advantaged or penalized relative to crossings with complete data. This is the headline score of the Beta v2 workbook."
+TotMSRank,Total Score,"Dense rank on TotScrMS, 1 = highest priority. This is the headline rank of the Beta v2 workbook. Every goal sheet is sorted by it."
+RoundScoreMS,Total Score,TotScrMS rounded to two decimal places for reporting.
+TotQualMS,Total Score,"Jenks natural-breaks class of TotScrMS, Very Low to Very High. Classes are computed within the set of crossings in this run, so a filtered extent reclassifies against its own distribution."
+LocalPriority,Local Review,Blank column for local use. Enter 1 to flag a crossing as a local priority. Nothing in this column feeds back into the model.
+LocalNotes,Local Review,"Blank column for local use. Enter a short reason for the flag, for example '2020 HazMit Plan' or 'school bus route'."

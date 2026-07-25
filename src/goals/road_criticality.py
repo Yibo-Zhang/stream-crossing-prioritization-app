@@ -10,6 +10,14 @@ from utils.scoring_utils import (
 
 
 def calculate_distance_score(distance):
+    # A missing distance must stay missing. Without this guard a NaN falls
+    # through every comparison below (NaN comparisons are all False) and reaches
+    # the final else, silently scoring 0. Final_scoring_decisions.docx specifies
+    # NaN only when there is no DstIMPScr data, and a real 0 is reserved for the
+    # over-2-mile band, so a missing distance and a distant crossing must not
+    # collapse to the same score.
+    if pd.isna(distance):
+        return np.nan
     if distance <= 0.5:
         return 1
     elif 0.5 < distance <= 1:

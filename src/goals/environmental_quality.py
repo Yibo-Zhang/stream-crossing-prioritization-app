@@ -139,30 +139,37 @@ def calculate_eq(df, params):
     df['SWQI'] = df['WQIScr'] * weights['water_quality']
     df['SWWQI'] = df['WWQIScr'] * weights['water_quality']
     
-    # Calculate EQ score dynamically
-    # Special rule: WQI only included if there is erosion (SEros != 0)
+    # Calculate EQ score dynamically.
+    # Special rule (Final_scoring_decisions.docx section 4): the two water
+    # quality criteria enter the Environmental Quality score only when the
+    # erosion score is present and strictly positive. Testing ErosScr directly,
+    # rather than the weighted SEros, avoids the NaN trap where a missing erosion
+    # score gives SEros = NaN and NaN != 0 evaluates True, which previously
+    # admitted water quality for crossings that have no erosion score at all.
     def calc_eq_score(row):
         num = 0.0
         den = 0.0
-        
+
+        eros_present_positive = pd.notna(row['ErosScr']) and row['ErosScr'] > 0
+
         if pd.notna(row['ErosScr']):
             num += row['SEros']
             den += weights['erosion']
-        
+
         if pd.notna(row['GCScr']):
             num += row['SGC']
             den += weights['geomorphic_compatibility']
-        
-        # Only include WQI if erosion score exists and is non-zero
-        if pd.notna(row['WQIScr']) and row['SEros'] != 0:
+
+        # Only include WQI if the erosion score is present and positive.
+        if pd.notna(row['WQIScr']) and eros_present_positive:
             num += row['SWQI']
             den += weights['water_quality']
 
-        # Only include WWQI if erosion score exists and is non-zero
-        if pd.notna(row['WWQIScr']) and row['SEros'] != 0:
+        # Only include WWQI if the erosion score is present and positive.
+        if pd.notna(row['WWQIScr']) and eros_present_positive:
             num += row['SWWQI']
             den += weights['water_quality']
-        
+
         return num / den if den > 0 else np.nan
     
     df['EQScr'] = df.apply(calc_eq_score, axis=1)

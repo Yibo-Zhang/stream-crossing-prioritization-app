@@ -1,4 +1,10 @@
-"""Streamlit interface for the Stream Crossing Prioritization Model (v1.8).
+"""Streamlit interface for the Stream Crossing Prioritization Model (Beta v2).
+
+Beta v2 is built on the Pilot model. Scoring is unchanged except for the Habitat
+Quality criterion rename (habitat quality -> Habitat Condition Tier). The
+interface reports the mean-substituted ranking family, and the Excel export adds
+a Beta v2 baseline comparison whenever the user departs from the default
+weightings or the full statewide extent.
 
 Performance model (Option B):
   - Weight controls live in a fragment: moving a slider reruns only that block,
@@ -33,13 +39,14 @@ from utils import gis_utils  # noqa: E402  (src/utils/gis_utils.py)
 from excel_report import build_excel_report  # noqa: E402  (scripts/excel_report.py)
 
 st.set_page_config(
-    page_title="Stream Crossing Prioritization Model",
+    page_title="Stream Crossing Prioritization Model (Beta v2)",
     page_icon="\U0001F30A",
     layout="wide",
 )
 
 DEFAULT_PARAMS_PATH = Path(__file__).parent / "configs" / "params.json"
 DEFAULT_INPUT_PATH = Path(__file__).parent / "data" / "input" / "crossings.csv"
+DEFAULT_BASELINE_PATH = Path(__file__).parent / "data" / "baseline" / "baseline_all.csv.gz"
 
 GOAL_LABELS = {
     "flood_vulnerability": "Flood Vulnerability",
@@ -61,12 +68,12 @@ GOAL_TO_CRITERIA_KEY = {
 }
 
 GOAL_QUAL_COL = {
-    "flood_vulnerability": "FVQual",
-    "environmental_quality": "EQQual",
-    "structural_risk": "SRQual",
-    "road_criticality": "RCQual",
-    "wildlife_connectivity": "WLQual",
-    "habitat_quality": "HQGQual",
+    "flood_vulnerability": "FVQualMS",
+    "environmental_quality": "EQQualMS",
+    "structural_risk": "SRQualMS",
+    "road_criticality": "RCQualMS",
+    "wildlife_connectivity": "WLQualMS",
+    "habitat_quality": "HQGQualMS",
     "environmental_justice": None,  # EJ has no dedicated Qual column in model.py
 }
 
@@ -76,7 +83,7 @@ CRITERIA_LABELS = {
     "sr": {"condition": "Condition", "size": "Size", "material": "Material"},
     "rc": {"aadt": "AADT", "distance_to_services": "Distance to Services", "functional_classification": "Functional Classification"},
     "wl": {"aop": "Aquatic Organism Passage", "special_species": "Special Species", "terrestrial_organism_passage": "Terrestrial Organism Passage"},
-    "hqg": {"habitat_quality": "Habitat Quality", "wetland_proximity": "Wetland Proximity", "conservation_status": "Conservation Status"},
+    "hqg": {"habitat_condition_tier": "Habitat Condition Tier", "wetland_proximity": "Wetland Proximity", "conservation_status": "Conservation Status"},
 }
 
 JENKS_ORDER = {"Very High": 4, "High": 3, "Moderate": 2, "Low": 1, "Very Low": 0}
@@ -199,7 +206,7 @@ def render_hero():
     st.markdown(
         """
         <div class="sc-hero">
-          <div class="sc-hero-eyebrow">Pilot Model</div>
+          <div class="sc-hero-eyebrow">Beta v2 &middot; built on the Pilot model</div>
           <div class="sc-hero-title">Stream Crossing Prioritization</div>
           <p class="sc-hero-sub">Adjust goal and criterion weightings, choose an area of interest,
           then run the model to rank crossings for replacement and export the results.</p>
@@ -226,7 +233,7 @@ def render_kpis(df):
     total = len(df)
 
     def count_q(q):
-        return int((df["TotQual"] == q).sum()) if "TotQual" in df.columns else 0
+        return int((df["TotQualMS"] == q).sum()) if "TotQualMS" in df.columns else 0
 
     if "Tot_Present" in df.columns and "Tot_Missing" in df.columns:
         denom = (df["Tot_Present"] + df["Tot_Missing"]).replace(0, np.nan)
@@ -290,6 +297,40 @@ def load_default_input():
     if DEFAULT_INPUT_PATH.exists():
         return pd.read_csv(DEFAULT_INPUT_PATH)
     return None
+
+
+@st.cache_data
+def load_baseline():
+    """Load the committed Beta v2 baseline (default weightings, full extent).
+
+    Returns None if the baseline file is absent, in which case the Excel export
+    simply omits the Beta_ comparison columns and the Beta v2 sheet.
+    """
+    if DEFAULT_BASELINE_PATH.exists():
+        return pd.read_csv(DEFAULT_BASELINE_PATH, low_memory=False)
+    return None
+
+
+def is_default_run(params, base_params, method, value):
+    """True when this run uses the default weightings over the full extent.
+
+    In that case the run and the baseline would be identical, so the Beta_
+    comparison is suppressed. Any weight change or region filter makes the run
+    non-default, and the baseline comparison is attached to the workbook.
+    """
+    if method != "all" or value is not None:
+        return False
+
+    tol = 1e-9
+    for goal, weight in base_params["goal_weights"].items():
+        if abs(float(params["goal_weights"].get(goal, weight)) - float(weight)) > tol:
+            return False
+    for ck, crits in base_params.get("criteria_weights", {}).items():
+        for crit, weight in crits.items():
+            got = params["criteria_weights"].get(ck, {}).get(crit, weight)
+            if abs(float(got) - float(weight)) > tol:
+                return False
+    return True
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -410,7 +451,7 @@ def build_map_section(active_boundary_gdf, highlight_ids, result_df):
         active_boundary_gdf=active_boundary_gdf,
         highlight_ids=highlight_ids,
         results_df=result_df,
-        score_col="TotQual",
+        score_col="TotQualMS",
     )
 
     render_map_legend()
@@ -446,19 +487,19 @@ def filter_by_region(df, method, value):
 # --------------------------------------------------------------------------- #
 
 def rank_top_crossings(df, top_n=20):
-    """Sort by Jenks class (TotQual, highest first), then by confidence
-    (Tot_Present), then by TotRank as the final tiebreaker."""
+    """Sort by Jenks class (TotQualMS, highest first), then by confidence
+    (Tot_Present), then by TotMSRank as the final tiebreaker."""
     if df.empty:
         return df
 
     ranked = df.copy()
-    ranked["_qual_order"] = ranked["TotQual"].map(JENKS_ORDER).fillna(-1) if "TotQual" in ranked.columns else -1
+    ranked["_qual_order"] = ranked["TotQualMS"].map(JENKS_ORDER).fillna(-1) if "TotQualMS" in ranked.columns else -1
     ranked["_confidence_order"] = ranked["Tot_Present"] if "Tot_Present" in ranked.columns else 0
 
     sort_cols = ["_qual_order", "_confidence_order"]
     ascending = [False, False]
-    if "TotRank" in ranked.columns:
-        sort_cols.append("TotRank")
+    if "TotMSRank" in ranked.columns:
+        sort_cols.append("TotMSRank")
         ascending.append(True)
 
     ranked = ranked.sort_values(sort_cols, ascending=ascending)
@@ -478,12 +519,12 @@ def build_top_crossings_table(display_df):
     top_n = st.slider("Number of top crossings to display", 5, 50, 20)
     top_df = rank_top_crossings(display_df, top_n=top_n)
 
-    show_cols = ["SADES_ID", "TotRank", "TotQual", "ConfTot"]
+    show_cols = ["SADES_ID", "Location", "TotMSRank", "TotQualMS", "ConfTot"]
     for _goal_key, qual_col in GOAL_QUAL_COL.items():
         if qual_col and qual_col in top_df.columns:
             show_cols.append(qual_col)
     show_cols = [c for c in show_cols if c in top_df.columns]
-    qual_cols_present = [c for c in show_cols if c.endswith("Qual")]
+    qual_cols_present = [c for c in show_cols if c.endswith("QualMS") or c.endswith("Qual")]
 
     styler = top_df[show_cols].style
     if qual_cols_present:
@@ -491,8 +532,8 @@ def build_top_crossings_table(display_df):
             styler = styler.map(_style_qual, subset=qual_cols_present)
         else:
             styler = styler.applymap(_style_qual, subset=qual_cols_present)
-    if "TotRank" in show_cols:
-        styler = styler.format({"TotRank": _fmt_rank})   # integer rank, no trailing .00
+    if "TotMSRank" in show_cols:
+        styler = styler.format({"TotMSRank": _fmt_rank})   # integer rank, no trailing .00
 
     st.dataframe(styler, use_container_width=True, hide_index=True)
 
@@ -565,8 +606,8 @@ def results_fragment():
     st.divider()
     with st.expander("View full results table"):
         cfg = {}
-        if "TotRank" in display_df.columns and hasattr(st, "column_config"):
-            cfg = {"TotRank": st.column_config.NumberColumn(format="%d")}
+        if "TotMSRank" in display_df.columns and hasattr(st, "column_config"):
+            cfg = {"TotMSRank": st.column_config.NumberColumn(format="%d")}
         st.dataframe(display_df, use_container_width=True, column_config=cfg)
     build_downloads_section(display_df)
 
@@ -642,19 +683,32 @@ def main():
                 st.error(f"The model could not complete: {e}")
                 st.stop()
 
-        sort_col = "TotRank" if "TotRank" in result_df.columns else None
+        sort_col = "TotMSRank" if "TotMSRank" in result_df.columns else None
         display_df = result_df.sort_values(sort_col) if sort_col else result_df
 
         st.session_state["result_df"] = display_df
         st.session_state["result_sig"] = current_sig
+
+        # Attach the Beta v2 baseline comparison only when the run departs from
+        # the default weightings or the full extent; a default run would compare
+        # against itself.
+        default_run = is_default_run(params, base_params, method, value)
+        baseline_df = None if default_run else load_baseline()
+        if not default_run and baseline_df is None:
+            st.info(
+                "Baseline file data/baseline/baseline_all.csv.gz was not found, so "
+                "the Excel export will omit the Beta v2 comparison columns. Run "
+                "scripts/build_baseline.py once and commit the result to enable it."
+            )
         try:
-            st.session_state["excel_bytes"] = build_excel_report(display_df)
+            st.session_state["excel_bytes"] = build_excel_report(display_df, baseline_df=baseline_df)
             st.session_state.pop("excel_error", None)
         except Exception as e:
             st.session_state["excel_bytes"] = None
             st.session_state["excel_error"] = str(e)
 
-        st.success(f"Analysis complete: {len(display_df)} crossings scored.")
+        scope = "default weightings, full extent" if default_run else "custom weightings or filtered extent"
+        st.success(f"Analysis complete: {len(display_df)} crossings scored ({scope}).")
 
     # Map (and results) are only rendered after a run has produced a
     # result_df, and the map only shows the crossings included in that run.

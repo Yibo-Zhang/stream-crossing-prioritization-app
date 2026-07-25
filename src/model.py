@@ -1,5 +1,23 @@
 #!/usr/bin/env python
-"""Stream Crossing Prioritization Model v1.8"""
+"""Stream Crossing Prioritization Model, Beta v2.
+
+Beta v2 is built on the Pilot model. The scoring logic is the Pilot logic
+documented in Final_scoring_decisions.docx and Memo_Beta_to_Pilot_Changes.docx;
+Beta v2 changes what is reported, not how criteria are scored, with one
+exception: the Habitat Quality criterion formerly called "habitat quality" is
+now "Habitat Condition Tier" (short code HCT, column HCTScr).
+
+Reporting changes in Beta v2:
+  - Location and Landowner labels are added after SADES_ID.
+  - Goal sheets and Final Results report the mean-substituted family only
+    (FVMSRank / FVQualMS / TotScrMS / TotMSRank / TotQualMS). The dynamic Rank
+    and Qual columns are still computed and are kept in results_all.csv.
+  - CostEstimate replaces the ARPA-phase RoundCost column.
+  - LocalPriority and LocalNotes are appended for local review.
+  - The sheet and CSV column layout now lives in one place,
+    src/utils/report_spec.py, instead of being duplicated here and in the two
+    report scripts.
+"""
 
 import argparse
 import timeit
@@ -11,6 +29,8 @@ from pathlib import Path
 from utils.io_utils import load_csv, save_csv, load_params
 from utils.validation import validate_dataset
 from utils.scoring_utils import normalize_minmax, calculate_confidence, apply_jenks_classification
+from utils.labels import add_labels
+from utils import report_spec
 
 from goals.flood_vulnerability import calculate_fv
 from goals.environmental_quality import calculate_eq
@@ -21,20 +41,24 @@ from goals.habitat_quality import calculate_hqg
 from goals.economic_impact import calculate_cost
 from goals.environmental_justice import calculate_ej
 
+MODEL_VERSION = report_spec.MODEL_VERSION
+MODEL_TITLE = report_spec.MODEL_TITLE
+
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description='Stream Crossing Prioritization Analysis')
+    parser = argparse.ArgumentParser(
+        description=f'{MODEL_TITLE} ({MODEL_VERSION}) analysis')
     parser.add_argument('--input', required=True, help='Path to input CSV file')
     parser.add_argument('--output-dir', default='./data/output', help='Output directory')
     parser.add_argument('--params', default='configs/params.json', help='Parameters JSON file')
     parser.add_argument('--skip-validation', action='store_true', help='Skip validation')
-    parser.add_argument('--version', action='version', version='v1.7')
+    parser.add_argument('--version', action='version', version=MODEL_VERSION)
     return parser.parse_args()
 
 
 def calculate_total_score(df, params):
     goal_weights = params['goal_weights']
-    
+
     df['SFV'] = df['FVNrm'] * goal_weights['flood_vulnerability']
     df['SEQ'] = df['EQNrm'] * goal_weights['environmental_quality']
     df['SSR'] = df['SRNrm'] * goal_weights['structural_risk']
@@ -42,7 +66,7 @@ def calculate_total_score(df, params):
     df['SWL'] = df['WLNrm'] * goal_weights['wildlife_connectivity']
     df['SHQG'] = df['HQGNrm'] * goal_weights['habitat_quality']
     df['SEJ'] = df['EJScr'] * goal_weights['environmental_justice']
-    
+
     def calc_total(row):
         num = sum([row['SFV'] if pd.notna(row['FVNrm']) else 0, row['SEQ'] if pd.notna(row['EQNrm']) else 0,
                   row['SSR'] if pd.notna(row['SRNrm']) else 0, row['SRC'] if pd.notna(row['RCNrm']) else 0,
@@ -56,18 +80,23 @@ def calculate_total_score(df, params):
                   goal_weights['habitat_quality'] if pd.notna(row['HQGNrm']) else 0,
                   goal_weights['environmental_justice'] if pd.notna(row['EJScr']) else 0])
         return num / den if den > 0 else np.nan
-    
+
     df['TotScr'] = df.apply(calc_total, axis=1)
     df['TotScr'] = df['TotScr'].round(8)
     df['TotRank'] = df['TotScr'].rank(method='dense', ascending=False)
     df['RoundScore'] = df['TotScr'].round(2)
-    
-    total_criterion_cols = ['HCScr', 'BlkFScr', 'ErosScr', 'GCScr', 'WQIScr','WWQIScr', 'CondScr', 'SizeScr', 'MatScr',
-                           'AADTScr', 'DstIMPScr', 'FncSysScr', 'AOPScr', 'SpSpScr', 'WlCoScr', 'HQScr', 'WtlndScr', 'CnsvStScr', 'EJScr']
+
+    # HCTScr replaces HQScr here (Habitat Condition Tier rename).
+    total_criterion_cols = ['HCScr', 'BlkFScr', 'ErosScr', 'GCScr', 'WQIScr', 'WWQIScr',
+                            'CondScr', 'SizeScr', 'MatScr',
+                            'AADTScr', 'DstIMPScr', 'FncSysScr',
+                            'AOPScr', 'SpSpScr', 'WlCoScr',
+                            'HCTScr', 'WtlndScr', 'CnsvStScr', 'EJScr']
     present, missing, conf_str = calculate_confidence(df, total_criterion_cols)
     df['Tot_Present'], df['Tot_Missing'], df['ConfTot'] = present, missing, conf_str
     df['TotQual'] = apply_jenks_classification(df['TotScr'])
     return df
+
 
 def calculate_total_score_ms(df, params):
     goal_weights = params['goal_weights']
@@ -101,15 +130,18 @@ def calculate_total_score_ms(df, params):
         ])
         return num / den if den > 0 else np.nan
 
-    df['TotScrMS']    = df.apply(calc_total_ms, axis=1)
-    df['TotScrMS']    = df['TotScrMS'].round(8)
-    df['TotMSRank']   = df['TotScrMS'].rank(method='dense', ascending=False)
+    df['TotScrMS']     = df.apply(calc_total_ms, axis=1)
+    df['TotScrMS']     = df['TotScrMS'].round(8)
+    df['TotMSRank']    = df['TotScrMS'].rank(method='dense', ascending=False)
     df['RoundScoreMS'] = df['TotScrMS'].round(2)
-    df['TotQualMS']   = apply_jenks_classification(df['TotScrMS'])
+    df['TotQualMS']    = apply_jenks_classification(df['TotScrMS'])
     return df
+
 
 def run_analysis(df, params):
     print("\nCalculating goal scores...")
+    print("  - Location and Landowner labels")
+    df = add_labels(df)
     print("  - Flood Vulnerability")
     df = calculate_fv(df, params)
     print("  - Environmental Quality")
@@ -128,9 +160,38 @@ def run_analysis(df, params):
     df = calculate_ej(df, params)
     print("  - Total Score")
     df = calculate_total_score(df, params)
-    print("  - Total Score (Mean-Imputed)")       # NEW
-    df = calculate_total_score_ms(df, params)     # NEW
-    return df
+    print("  - Total Score (Mean-Substituted)")
+    df = calculate_total_score_ms(df, params)
+    # Defragment after the many column insertions above.
+    return df.copy()
+
+
+def build_sheet_frame(df, sheet_name, add_user_columns=True):
+    """Return the reporting frame for one sheet, sorted by TotMSRank.
+
+    Used by both the CSV writer here and the Excel report builders, so a sheet
+    and its matching CSV can never diverge.
+    """
+    cols = [c for c in report_spec.SHEET_COLUMNS[sheet_name] if c in df.columns]
+    out = df[cols].copy()
+    if report_spec.SORT_COLUMN in out.columns:
+        out = out.sort_values(report_spec.SORT_COLUMN, ascending=True)
+    if add_user_columns:
+        for col in report_spec.USER_COLUMNS:
+            out[col] = pd.NA
+    return out
+
+
+def round_for_output(frame):
+    """Round numeric columns for file output.
+
+    Two decimals as before, except the composite scores, which are kept at four
+    so that TotScrMS still separates crossings that share a rounded score.
+    """
+    out = frame.copy()
+    for col in out.select_dtypes(include=[np.number]).columns:
+        out[col] = out[col].round(4 if col in report_spec.HIGH_PRECISION_COLUMNS else 2)
+    return out
 
 
 def save_results(df, output_dir):
@@ -139,156 +200,76 @@ def save_results(df, output_dir):
 
     print(f"\nSaving results to {output_dir}...")
 
-    goal_columns = {
-        'flood_vulnerability': [
-            'SADES_ID',
-            'HC_2yr', 'HC_10yr', 'HC_25yr', 'HC_50yr', 'HC_100yr', 'BlckFlg',
-            'FVRank', 'FVQual', 'FVMSRank', 'FVQualMS',
-            'ConfFV',
-            'TotRank', 'TotQual', 'TotMSRank', 'TotQualMS',
-            'ConfTot',
-        ],
-        'road_criticality': [
-            'SADES_ID',
-            'AADT', 'MinDstImP', 'FUNCT_SYST',
-            'RCRank', 'RCQual', 'RCMSRank', 'RCQualMS',
-            'ConfRC',
-            'TotRank', 'TotQual', 'TotMSRank', 'TotQualMS',
-            'ConfTot',
-        ],
-        'structural_risk': [
-            'SADES_ID',
-            'StructCond', 'UsHwCon', 'DsHwCon', 'UsSize', 'CoverDepth', 'StructMat',
-            'SRRank', 'SRQual', 'SRMSRank', 'SRQualMS',
-            'ConfSR',
-            'TotRank', 'TotQual', 'TotMSRank', 'TotQualMS',
-            'ConfTot',
-        ],
-        'wildlife_connectivity': [
-            'SADES_ID',
-            'AOP_Score', 'Sp_Sp_FG','WlCo',
-            'WLRank', 'WLQual', 'WLMSRank', 'WLQualMS',
-            'ConfWL',
-            'TotRank', 'TotQual', 'TotMSRank', 'TotQualMS',
-            'ConfTot',
-        ],
-        'habitat_quality': [
-            'SADES_ID',
-            'WAP_TIER', 'Wetlnd', 'ConsvStat',
-            'HQGRank', 'HQGQual', 'HQGMSRank', 'HQGQualMS',
-            'ConfHQG',
-            'TotRank', 'TotQual', 'TotMSRank', 'TotQualMS',
-            'ConfTot',
-        ],
-        'environmental_quality': [
-            'SADES_ID',
-            'Erosion', 'GC_Score', 'Impair','WImpair',
-            'EQRank', 'EQQual', 'EQMSRank', 'EQQualMS',
-            'ConfEQ',
-            'TotRank', 'TotQual', 'TotMSRank', 'TotQualMS',
-            'ConfTot',
-        ],
-        'environmental_justice': [
-            'SADES_ID',
-            'EJ',
-            'ConfTot',
-            'TotRank', 'TotQual', 'TotMSRank', 'TotQualMS',
-        ],
-        'final_results': [
-            'SADES_ID',
-            'HC_2yr', 'HC_10yr', 'HC_25yr', 'HC_50yr', 'HC_100yr', 'BlckFlg',
-            'FVRank', 'FVQual', 'FVMSRank', 'FVQualMS',
-            'AADT', 'MinDstImP', 'FUNCT_SYST',
-            'RCRank', 'RCQual', 'RCMSRank', 'RCQualMS',
-            'StructCond', 'UsHwCon', 'DsHwCon', 'UsSize', 'CoverDepth', 'StructMat',
-            'SRRank', 'SRQual', 'SRMSRank', 'SRQualMS',
-            'AOP_Score', 'Sp_Sp_FG','WlCo',
-            'WLRank', 'WLQual', 'WLMSRank', 'WLQualMS',
-            'WAP_TIER', 'Wetlnd', 'ConsvStat',
-            'HQGRank', 'HQGQual', 'HQGMSRank', 'HQGQualMS',
-            'Erosion', 'GC_Score', 'Impair','WImpair',
-            'EQRank', 'EQQual', 'EQMSRank', 'EQQualMS',
-            'EJ', 'Cost',
-            'ConfTot',
-            'TotRank', 'TotQual', 'TotScrMS', 'TotMSRank', 'RoundScoreMS', 'TotQualMS',
-        ],
-    }
-
-    for goal_name, cols in goal_columns.items():
-        available_cols = [c for c in cols if c in df.columns]
-        df_goal = df[available_cols].copy()
-        if 'TotRank' in df_goal.columns:
-            df_goal = df_goal.sort_values('TotRank', ascending=True)
-        for col in df_goal.select_dtypes(include=[np.number]).columns:
-            df_goal[col] = df_goal[col].round(2)
-        filepath = output_dir / f'results_{goal_name}.csv'
+    for sheet_name, file_stem in report_spec.CSV_OUTPUT_NAMES.items():
+        df_goal = round_for_output(build_sheet_frame(df, sheet_name))
+        filepath = output_dir / f'results_{file_stem}.csv'
         save_csv(df_goal, filepath)
-        print(f"  ✓ {filepath.name}")
+        print(f"  [ok] {filepath.name}")
 
     df_all = df.copy()
-    if 'TotRank' in df_all.columns:
-        df_all = df_all.sort_values('TotRank', ascending=True)
-    for col in df_all.select_dtypes(include=[np.number]).columns:
-        df_all[col] = df_all[col].round(2)
+    if report_spec.SORT_COLUMN in df_all.columns:
+        df_all = df_all.sort_values(report_spec.SORT_COLUMN, ascending=True)
+    df_all = round_for_output(df_all)
     filepath = output_dir / 'results_all.csv'
     save_csv(df_all, filepath)
-    print(f"  ✓ {filepath.name}")
-    print("\n✓ All results saved successfully!")
-    
+    print(f"  [ok] {filepath.name}")
+    print("\nAll results saved successfully.")
+
 
 def main():
     start_time = timeit.default_timer()
     args = parse_arguments()
-    
-    print("="*60)
-    print("Stream Crossing Prioritization Model v1.7")
-    print("="*60)
-    
+
+    banner = f"{MODEL_TITLE} {MODEL_VERSION}"
+    print("=" * 60)
+    print(banner)
+    print("=" * 60)
+
     print(f"\nLoading parameters from: {args.params}")
     try:
         params = load_params(args.params)
-        print(f"  ✓ Parameters loaded (version {params.get('version', 'unknown')})")
+        print(f"  [ok] Parameters loaded (version {params.get('version', 'unknown')})")
     except Exception as e:
-        print(f"  ✗ Error loading parameters: {e}")
+        print(f"  [error] Error loading parameters: {e}")
         sys.exit(1)
-    
+
     print(f"\nLoading input data from: {args.input}")
     try:
         df = load_csv(args.input)
-        print(f"  ✓ Loaded {len(df)} records with {len(df.columns)} fields")
+        print(f"  [ok] Loaded {len(df)} records with {len(df.columns)} fields")
     except Exception as e:
-        print(f"  ✗ Error loading input data: {e}")
+        print(f"  [error] Error loading input data: {e}")
         sys.exit(1)
-    
+
     if not args.skip_validation and 'validation' in params:
         print("\nValidating input data...")
         errors = validate_dataset(df, params['validation'])
         if errors:
-            print("  ✗ Validation errors found:")
+            print("  [error] Validation errors found:")
             for error in errors:
                 print(f"    - {error}")
             sys.exit(1)
-        print("  ✓ Input data validated successfully")
-    
+        print("  [ok] Input data validated successfully")
+
     try:
         df_results = run_analysis(df, params)
     except Exception as e:
-        print(f"\n✗ Error during analysis: {e}")
+        print(f"\n[error] Error during analysis: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
-    
+
     try:
         save_results(df_results, args.output_dir)
     except Exception as e:
-        print(f"\n✗ Error saving results: {e}")
+        print(f"\n[error] Error saving results: {e}")
         sys.exit(1)
-    
+
     end_time = timeit.default_timer()
     runtime = end_time - start_time
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Analysis completed in {runtime:.2f} seconds")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
 
 if __name__ == "__main__":
