@@ -86,7 +86,50 @@ CRITERIA_LABELS = {
     "hqg": {"habitat_condition_tier": "Habitat Condition Tier", "wetland_proximity": "Wetland Proximity", "conservation_status": "Conservation Status"},
 }
 
+# Criterion keys renamed across model versions. The value is the display label to
+# use whichever key a given params.json happens to carry. This lets the app read
+# an older params.json (habitat_quality) or the Beta v2 one (habitat_condition_tier)
+# without a KeyError, and to fall back to a readable label for any unmapped key.
+CRITERIA_KEY_ALIASES = {
+    "habitat_quality": "Habitat Condition Tier",
+}
+
+
+def criterion_label(ck, key):
+    """Return a display label for criterion ``key`` within group ``ck``.
+
+    Resolution order: the label table for the group, then the cross-version
+    alias table, then a title-cased fallback derived from the key itself. The
+    fallback guarantees the UI never crashes on an unrecognized criterion key.
+    """
+    labels = CRITERIA_LABELS.get(ck, {})
+    if key in labels:
+        return labels[key]
+    if key in CRITERIA_KEY_ALIASES:
+        return CRITERIA_KEY_ALIASES[key]
+    return key.replace("_", " ").title()
+
 JENKS_ORDER = {"Very High": 4, "High": 3, "Moderate": 2, "Low": 1, "Very Low": 0}
+
+# Goal accent colors, matched to the workbook tab colors in
+# src/utils/report_spec.py so the interface and the Excel report read as one
+# product.
+GOAL_COLORS = {
+    "flood_vulnerability": "#3E9AA8",
+    "environmental_quality": "#E08A3C",
+    "structural_risk": "#D65F5F",
+    "road_criticality": "#C9A227",
+    "wildlife_connectivity": "#7C77B9",
+    "habitat_quality": "#4F86C6",
+    "environmental_justice": "#C86B98",
+}
+
+
+def _safe_rerun():
+    """Call st.rerun (or the older experimental alias) if available."""
+    fn = getattr(st, "rerun", None) or getattr(st, "experimental_rerun", None)
+    if fn is not None:
+        fn()
 
 QUAL_COLORS = {
     "Very High": ("#d73027", "#ffffff"),
@@ -191,6 +234,36 @@ h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; color: var(--ink); }
 
 [data-testid="stExpander"] { border: 1px solid var(--line); border-radius: 10px; }
 
+/* Goal-colored header on each weighting card */
+.sc-goalhead {
+    display: flex; align-items: center; gap: 9px;
+    font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 1.18rem;
+    color: var(--ink); padding: 4px 0 8px 0; margin-top: 6px;
+    border-bottom: 2px solid var(--goal);
+}
+.sc-goaldot { width: 12px; height: 12px; border-radius: 50%; background: var(--goal); flex: 0 0 auto; }
+.sc-goalstate {
+    margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-weight: 500;
+    font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
+    color: #ffffff; background: var(--goal); border-radius: 999px; padding: 2px 9px;
+}
+
+/* Active-goal chip row */
+.sc-chiprow { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 2px 0 16px 0; }
+.sc-chip-lead { font-size: 0.86rem; font-weight: 600; color: var(--ink); margin-right: 4px; }
+.sc-chip {
+    font-size: 0.74rem; font-weight: 600; color: #ffffff; background: var(--chip);
+    border-radius: 999px; padding: 3px 11px; line-height: 1.4;
+}
+.sc-chip-muted { font-size: 0.74rem; color: var(--granite); font-style: italic; margin-left: 4px; }
+
+/* Footer */
+.sc-footer {
+    margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--line);
+    color: var(--granite); font-size: 0.82rem; line-height: 1.5;
+}
+.sc-footer strong { color: var(--ink); }
+
 @media (prefers-reduced-motion: reduce) {
     .stButton > button, .stDownloadButton > button { transition: none; }
 }
@@ -284,31 +357,64 @@ def _fmt_rank(v):
 
 # --------------------------------------------------------------------------- #
 # Data loading and caching
+#
+# The loaders below are cached on the file's modification time and size, not on
+# nothing. A plain @st.cache_data with no arguments caches the first return
+# value for the life of the process, so if params.json changes on disk (for
+# example after a git push and a Streamlit Cloud hot reload that does not clear
+# the data cache) the app keeps serving the old contents. Passing the file
+# signature as an argument makes the cache key change when the file changes, so
+# an edited params.json or dataset is picked up on the next rerun.
 # --------------------------------------------------------------------------- #
 
-@st.cache_data
-def load_default_params():
-    with open(DEFAULT_PARAMS_PATH) as f:
+def _file_signature(path):
+    """Return a (path, mtime, size) tuple, or (path, 0, 0) if the file is
+    absent, for use as a cache key."""
+    try:
+        stat = path.stat()
+        return (str(path), stat.st_mtime, stat.st_size)
+    except OSError:
+        return (str(path), 0, 0)
+
+
+@st.cache_data(show_spinner=False)
+def _load_params_cached(signature):
+    path = Path(signature[0])
+    with open(path) as f:
         return json.load(f)
 
 
-@st.cache_data
-def load_default_input():
-    if DEFAULT_INPUT_PATH.exists():
-        return pd.read_csv(DEFAULT_INPUT_PATH)
+def load_default_params():
+    return _load_params_cached(_file_signature(DEFAULT_PARAMS_PATH))
+
+
+@st.cache_data(show_spinner=False)
+def _load_input_cached(signature):
+    path = Path(signature[0])
+    if path.exists():
+        return pd.read_csv(path, low_memory=False)
     return None
 
 
-@st.cache_data
-def load_baseline():
+def load_default_input():
+    return _load_input_cached(_file_signature(DEFAULT_INPUT_PATH))
+
+
+@st.cache_data(show_spinner=False)
+def _load_baseline_cached(signature):
     """Load the committed Beta v2 baseline (default weightings, full extent).
 
     Returns None if the baseline file is absent, in which case the Excel export
     simply omits the Beta_ comparison columns and the Beta v2 sheet.
     """
-    if DEFAULT_BASELINE_PATH.exists():
-        return pd.read_csv(DEFAULT_BASELINE_PATH, low_memory=False)
+    path = Path(signature[0])
+    if path.exists():
+        return pd.read_csv(path, low_memory=False)
     return None
+
+
+def load_baseline():
+    return _load_baseline_cached(_file_signature(DEFAULT_BASELINE_PATH))
 
 
 def is_default_run(params, base_params, method, value):
@@ -352,9 +458,11 @@ def assemble_params(base_params):
 
         ck = GOAL_TO_CRITERIA_KEY.get(goal_key)
         if ck and ck in base_params.get("criteria_weights", {}):
-            for crit in CRITERIA_LABELS[ck]:
+            # Iterate the keys that actually exist in params, so a criterion
+            # renamed between model versions cannot raise a KeyError here.
+            for crit, default_cw in base_params["criteria_weights"][ck].items():
                 con = st.session_state.get(f"crit_on_{ck}_{crit}", True)
-                cw = st.session_state.get(f"crit_w_{ck}_{crit}", base_params["criteria_weights"][ck][crit])
+                cw = st.session_state.get(f"crit_w_{ck}_{crit}", default_cw)
                 params["criteria_weights"][ck][crit] = cw if con else 0.0
     return params
 
@@ -367,34 +475,80 @@ def assemble_params(base_params):
 def weight_controls_fragment(base_params):
     section_header(
         1, "Weightings",
-        "Toggle a goal off to exclude it from the composite score. Sliders reflect "
-        "the survey-derived defaults from configs/params.json and adjust from 0 to 1. "
-        "Changes take effect on the next run.",
+        "Toggle a goal off to exclude it from the composite score. Sliders start "
+        "at the survey-derived defaults and adjust from 0 to 1. Changes take effect "
+        "on the next run.",
     )
+
+    # Reset control and a live summary of how many goals are active.
+    top_l, top_r = st.columns([3, 1])
+    with top_r:
+        if st.button("Reset to defaults", use_container_width=True,
+                     help="Restore every goal and criterion to its default weight and re-enable it."):
+            for k in list(st.session_state.keys()):
+                if k.startswith(("goal_on_", "goal_w_", "crit_on_", "crit_w_")):
+                    del st.session_state[k]
+            _safe_rerun()
+
+    active_goals = [
+        GOAL_LABELS[g] for g in GOAL_LABELS
+        if st.session_state.get(f"goal_on_{g}", True)
+    ]
+    with top_l:
+        chips = "".join(
+            f'<span class="sc-chip" style="--chip:{GOAL_COLORS.get(g, "#5A6B75")}">'
+            f'{GOAL_LABELS[g]}</span>'
+            for g in GOAL_LABELS if st.session_state.get(f"goal_on_{g}", True)
+        )
+        excluded = [GOAL_LABELS[g] for g in GOAL_LABELS
+                    if not st.session_state.get(f"goal_on_{g}", True)]
+        note = f'<span class="sc-chip-muted">Excluded: {", ".join(excluded)}</span>' if excluded else ""
+        st.markdown(
+            f'<div class="sc-chiprow"><span class="sc-chip-lead">{len(active_goals)} of '
+            f'{len(GOAL_LABELS)} goals active</span>{chips}{note}</div>',
+            unsafe_allow_html=True,
+        )
 
     cols_per_row = 2
     goal_keys = list(GOAL_LABELS.keys())
     for row_start in range(0, len(goal_keys), cols_per_row):
         row_keys = goal_keys[row_start: row_start + cols_per_row]
-        row_cols = st.columns(cols_per_row)
+        row_cols = st.columns(cols_per_row, gap="medium")
         for col, goal_key in zip(row_cols, row_keys):
             label = GOAL_LABELS[goal_key]
+            color = GOAL_COLORS.get(goal_key, "#5A6B75")
             default_w = base_params["goal_weights"][goal_key]
+            on = st.session_state.get(f"goal_on_{goal_key}", True)
             with col:
-                st.subheader(label)
-                on = st.checkbox("Include this goal", value=True, key=f"goal_on_{goal_key}")
+                # Colored goal header tied to the workbook's goal color.
+                st.markdown(
+                    f'<div class="sc-goalhead" style="--goal:{color}">'
+                    f'<span class="sc-goaldot"></span>{label}'
+                    f'<span class="sc-goalstate">{"active" if on else "excluded"}</span></div>',
+                    unsafe_allow_html=True,
+                )
+                on = st.checkbox("Include this goal", value=on, key=f"goal_on_{goal_key}")
                 st.slider("Goal weight", 0.0, 1.0, float(default_w), 0.01,
                           key=f"goal_w_{goal_key}", disabled=not on)
 
                 ck = GOAL_TO_CRITERIA_KEY.get(goal_key)
                 if ck and ck in base_params.get("criteria_weights", {}):
-                    with st.expander(f"{label}: criteria weights", expanded=False):
-                        for crit, crit_label in CRITERIA_LABELS[ck].items():
-                            default_cw = base_params["criteria_weights"][ck][crit]
-                            con = st.checkbox(f"Include: {crit_label}", value=True,
-                                              key=f"crit_on_{ck}_{crit}")
-                            st.slider(crit_label, 0.0, 1.0, float(default_cw), 0.01,
-                                      key=f"crit_w_{ck}_{crit}", disabled=not con)
+                    crit_items = list(base_params["criteria_weights"][ck].items())
+                    n_on = sum(
+                        1 for crit, _ in crit_items
+                        if st.session_state.get(f"crit_on_{ck}_{crit}", True)
+                    )
+                    with st.expander(f"Criteria weights  ({n_on}/{len(crit_items)} on)", expanded=False):
+                        # Iterate the keys present in params, so a renamed
+                        # criterion cannot raise a KeyError. Labels resolve
+                        # through criterion_label(), which tolerates the
+                        # habitat_quality -> Habitat Condition Tier rename.
+                        for crit, default_cw in crit_items:
+                            crit_lab = criterion_label(ck, crit)
+                            con = st.checkbox(f"Include: {crit_lab}", value=True,
+                                              key=f"crit_on_{ck}_{crit}", disabled=not on)
+                            st.slider(crit_lab, 0.0, 1.0, float(default_cw), 0.01,
+                                      key=f"crit_w_{ck}_{crit}", disabled=not (on and con))
 
 
 # --------------------------------------------------------------------------- #
@@ -637,7 +791,7 @@ def main():
     )
 
     if uploaded is not None:
-        df = pd.read_csv(uploaded)
+        df = pd.read_csv(uploaded, low_memory=False)
         data_token = f"{uploaded.name}:{uploaded.size}"
     else:
         df = load_default_input()
@@ -720,6 +874,22 @@ def main():
     else:
         st.caption("Set your weightings and region, then click Run Analysis to score the crossings. "
                    "The map will appear here once a run has completed.")
+
+    render_footer()
+
+
+def render_footer():
+    st.markdown(
+        """
+        <div class="sc-footer">
+          <strong>Stream Crossing Prioritization Model, Beta v2</strong>, built on the ARPA-phase Pilot model.
+          A collaboration of NHDES, the New Hampshire Stream Crossing Initiative, and the University of New Hampshire.
+          Results are planning-level and are not a substitute for site-specific engineering assessment.<br>
+          Column definitions are embedded as header comments in the Excel report and documented in the Guide-Metadata (Beta v2).
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 if __name__ == "__main__":
