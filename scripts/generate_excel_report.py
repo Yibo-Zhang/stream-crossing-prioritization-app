@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Command line wrapper that writes the Beta v2 Excel workbook to disk.
+"""Command line wrapper that writes the UNH Beta Model v1.2 Excel workbook to disk.
 
 Location in repo: scripts/generate_excel_report.py
 
@@ -9,7 +9,7 @@ scripts/excel_report.build_excel_report, which is the same function the
 Streamlit app calls, so the file-based and in-memory workbooks are identical for
 identical inputs.
 
-Before Beta v2 this script held its own copy of the sheet layout and called
+Before v1.2 this script held its own copy of the sheet layout and called
 jenkspy.jenks_breaks with the nb_class keyword, which raises TypeError on
 jenkspy 0.3.0 and later. Both problems are removed by delegating to
 excel_report.
@@ -43,7 +43,7 @@ def parse_arguments():
     parser.add_argument("--output", default=str(REPO_ROOT / "data" / "output" / "report.xlsx"),
                         help="Destination workbook")
     parser.add_argument("--baseline", default=None,
-                        help="Optional Beta v2 baseline file. Pass 'auto' to use "
+                        help="Optional default baseline file. Pass 'auto' to use "
                              "data/baseline/baseline_all.csv.gz if it exists.")
     return parser.parse_args()
 
@@ -67,7 +67,7 @@ def main():
         elif args.baseline != "auto":
             raise FileNotFoundError(f"Baseline file not found: {baseline_path}")
         else:
-            print("No baseline file found; the workbook will omit the Beta v2 comparison.")
+            print("No baseline file found; the workbook will omit the default-baseline comparison.")
 
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)

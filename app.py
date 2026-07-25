@@ -1,10 +1,13 @@
-"""Streamlit interface for the Stream Crossing Prioritization Model (Beta v2).
+"""Streamlit interface for the Stream Crossing Prioritization Model
+(UNH Beta Model v1.2).
 
-Beta v2 is built on the Pilot model. Scoring is unchanged except for the Habitat
-Quality criterion rename (habitat quality -> Habitat Condition Tier). The
-interface reports the mean-substituted ranking family, and the Excel export adds
-a Beta v2 baseline comparison whenever the user departs from the default
-weightings or the full statewide extent.
+UNH Beta Model v1.2 is the July 2025 update of the model per Consultant Team
+recommendations at the end of the ARPA phase, building on UNH Beta Model v1.1
+(finalized May 2025). It adds terrestrial wildlife connectivity and watershed
+water quality impairment, renames the Habitat Quality criterion to Habitat
+Condition Tier, and reports the mean-substituted ranking family. The Excel
+export adds a default-baseline comparison whenever the user departs from the
+default weightings or the full statewide extent.
 
 Performance model (Option B):
   - Weight controls live in a fragment: moving a slider reruns only that block,
@@ -34,12 +37,11 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 sys.path.insert(0, str(Path(__file__).parent / "scripts"))
 
 from model import run_analysis  # noqa: E402
-from utils.validation import validate_dataset  # noqa: E402
 from utils import gis_utils  # noqa: E402  (src/utils/gis_utils.py)
 from excel_report import build_excel_report  # noqa: E402  (scripts/excel_report.py)
 
 st.set_page_config(
-    page_title="Stream Crossing Prioritization Model (Beta v2)",
+    page_title="Stream Crossing Prioritization Model (UNH Beta Model v1.2)",
     page_icon="\U0001F30A",
     layout="wide",
 )
@@ -88,7 +90,7 @@ CRITERIA_LABELS = {
 
 # Criterion keys renamed across model versions. The value is the display label to
 # use whichever key a given params.json happens to carry. This lets the app read
-# an older params.json (habitat_quality) or the Beta Model V2 one (habitat_condition_tier)
+# an older params.json (habitat_quality) or the v1.2 one (habitat_condition_tier)
 # without a KeyError, and to fall back to a readable label for any unmapped key.
 CRITERIA_KEY_ALIASES = {
     "habitat_quality": "Habitat Condition Tier",
@@ -278,7 +280,7 @@ def render_hero():
     st.markdown(
         """
         <div class="sc-hero">
-          <div class="sc-hero-eyebrow">Beta Model v1.2</div>
+          <div class="sc-hero-eyebrow">UNH Beta Model v1.2 &middot; updated July 2025</div>
           <div class="sc-hero-title">Stream Crossing Prioritization</div>
           <p class="sc-hero-sub">Adjust goal and criterion weightings, choose an area of interest,
           then run the model to rank crossings for replacement and export the results.</p>
@@ -429,10 +431,10 @@ def load_default_input():
 
 @st.cache_data(show_spinner=False)
 def _load_baseline_cached(signature):
-    """Load the committed Beta Model v1.2 baseline (default weightings, full extent).
+    """Load the committed default baseline (default weightings, full extent).
 
     Returns None if the baseline file is absent, in which case the Excel export
-    simply omits the Beta_ comparison columns and the Beta Model v1.2 sheet.
+    simply omits the Base_ comparison columns and the Default Baseline sheet.
     """
     path = Path(signature[0])
     if path.exists():
@@ -447,7 +449,7 @@ def load_baseline():
 def is_default_run(params, base_params, method, value):
     """True when this run uses the default weightings over the full extent.
 
-    In that case the run and the baseline would be identical, so the Beta_
+    In that case the run and the baseline would be identical, so the Base_
     comparison is suppressed. Any weight change or region filter makes the run
     non-default, and the baseline comparison is attached to the workbook.
     """
@@ -818,10 +820,6 @@ def main():
         "Upload input CSV (optional; uses bundled demo data/input/crossings.csv if not provided)",
         type="csv",
     )
-    run_validation = st.checkbox(
-        "Validate input data before running (unchecked = skip validation, default)",
-        value=False,
-    )
 
     if uploaded is not None:
         df = pd.read_csv(uploaded, low_memory=False)
@@ -840,14 +838,6 @@ def main():
     if st.session_state.get("result_sig") not in (None, current_sig):
         for k in ("result_df", "result_sig", "excel_bytes", "excel_error"):
             st.session_state.pop(k, None)
-
-    if run_validation:
-        errors = validate_dataset(df, params.get("validation", {}))
-        if errors:
-            st.error("Validation failed. Uncheck validation or fix the input data.")
-            for e in errors:
-                st.write(f"- {e}")
-            st.stop()
 
     filtered_df = filter_by_region(df, method, value)
     active_filter = method != "all" and value is not None
@@ -876,7 +866,7 @@ def main():
         st.session_state["result_df"] = display_df
         st.session_state["result_sig"] = current_sig
 
-        # Attach the Beta Model v1.2 baseline comparison only when the run departs from
+        # Attach the default-baseline comparison only when the run departs from
         # the default weightings or the full extent; a default run would compare
         # against itself.
         default_run = is_default_run(params, base_params, method, value)
@@ -884,7 +874,7 @@ def main():
         if not default_run and baseline_df is None:
             st.info(
                 "Baseline file data/baseline/baseline_all.csv.gz was not found, so "
-                "the Excel export will omit the Beta Model v1.2 comparison columns. Run "
+                "the Excel export will omit the default-baseline comparison columns. Run "
                 "scripts/build_baseline.py once and commit the result to enable it."
             )
         try:
@@ -915,10 +905,11 @@ def render_footer():
     st.markdown(
         """
         <div class="sc-footer">
-          <strong>Stream Crossing Prioritization Model, Beta Model v1.2.</strong>
+          <strong>Stream Crossing Prioritization Model, UNH Beta Model v1.2</strong>,
+          the July 2025 update of UNH Beta Model v1.1 (finalized May 2025).
           A collaboration of NHDES, the New Hampshire Stream Crossing Initiative, and the University of New Hampshire.
           Results are planning-level and are not a substitute for site-specific engineering assessment.<br>
-          Column definitions are embedded as header comments in the Excel report and documented in the Guide-Metadata (Beta v2).
+          Column definitions are embedded as header comments in the Excel report and documented in the Guide and Metadata (v1.2).
         </div>
         """,
         unsafe_allow_html=True,

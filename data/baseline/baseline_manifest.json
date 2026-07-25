@@ -1,11 +1,11 @@
 {
-  "model_version": "Beta v2",
-  "built_utc": "2026-07-25T00:02:47+00:00",
+  "model_version": "UNH Beta Model v1.2",
+  "built_utc": "2026-07-25T17:39:00+00:00",
   "input_file": "crossings.csv",
   "input_sha256": "3e8bdf27419b2bee8d92edc01f1dcb8dc2a005237cad461a14208b97c4c6083d",
   "input_records": 5592,
   "params_file": "params.json",
-  "params_version": "Beta v2",
+  "params_version": "UNH Beta Model v1.2",
   "goal_weights": {
     "flood_vulnerability": 0.875,
     "environmental_quality": 0.781007751937984,

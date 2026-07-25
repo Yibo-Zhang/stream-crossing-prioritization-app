@@ -3,7 +3,7 @@
 Replacement cost is reported alongside the priority results as a planning
 reference and does not enter the priority score.
 
-Beta v2 change: the reporting column formerly named RoundCost in the ARPA-phase
+v1.2 change: the reporting column formerly named RoundCost in the ARPA-phase
 workbook (where it held cost in millions of dollars) is replaced by
 CostEstimate, a dollar figure rounded to a whole reporting increment so the
 last digits read as zeros, for example 150,000 or 1,270,000. The rounding base

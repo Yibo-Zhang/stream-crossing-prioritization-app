@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Build and store the Beta v2 baseline run.
+"""Build and store the default baseline run (UNH Beta Model v1.2).
 
 Location in repo: scripts/build_baseline.py
 
@@ -67,7 +67,7 @@ def main():
     if output_path.exists() and not args.force:
         raise SystemExit(
             f"Baseline already exists at {output_path}. Re-run with --force to replace it. "
-            "Replacing the baseline changes every Beta_ comparison column in the workbook."
+            "Replacing the baseline changes every Base_ comparison column in the workbook."
         )
 
     input_path = Path(args.input)

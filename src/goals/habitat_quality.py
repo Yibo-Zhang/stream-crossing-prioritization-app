@@ -1,8 +1,8 @@
 """Habitat Quality goal calculations.
 
-Beta v2 change: the first criterion of this goal is renamed from "habitat
+v1.2 change: the first criterion of this goal is renamed from "habitat
 quality" to "Habitat Condition Tier", per Final_scoring_decisions.docx section 8
-and Memo_Beta_to_Pilot_Changes.docx section 5.1. The rename removes the
+and the Model Eval Memo. The rename removes the
 collision between the criterion name and the goal name. The short code used
 throughout the model is HCT:
 
@@ -30,8 +30,8 @@ HCT_WEIGHT_KEYS = ("habitat_condition_tier", "habitat_quality")
 def _hct_weight(weights):
     """Return the Habitat Condition Tier criterion weight.
 
-    Accepts either the Beta v2 key or the legacy key so that a params file
-    written for the Pilot model does not raise KeyError. Raises with an explicit
+    Accepts either the v1.2 key or the legacy key so that a params file
+    written for v1.1 does not raise KeyError. Raises with an explicit
     message if neither is present.
     """
     for key in HCT_WEIGHT_KEYS:

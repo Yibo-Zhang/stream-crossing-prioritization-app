@@ -1,6 +1,6 @@
 {
-  "version": "Beta v2",
-  "description": "Stream Crossing Prioritization Model Parameters (Beta v2, built on the Pilot model)",
+  "version": "UNH Beta Model v1.2",
+  "description": "Stream Crossing Prioritization Model Parameters (UNH Beta Model v1.2, the July 2025 update of UNH Beta Model v1.1)",
   "goal_weights": {
     "flood_vulnerability": 0.875,
     "environmental_quality": 0.781007751937984,

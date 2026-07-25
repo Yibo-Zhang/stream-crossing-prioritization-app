@@ -1,13 +1,16 @@
 #!/usr/bin/env python
-"""Stream Crossing Prioritization Model, Beta v2.
+"""Stream Crossing Prioritization Model, UNH Beta Model v1.2.
 
-Beta v2 is built on the Pilot model. The scoring logic is the Pilot logic
-documented in Final_scoring_decisions.docx and Memo_Beta_to_Pilot_Changes.docx;
-Beta v2 changes what is reported, not how criteria are scored, with one
-exception: the Habitat Quality criterion formerly called "habitat quality" is
-now "Habitat Condition Tier" (short code HCT, column HCTScr).
+UNH Beta Model v1.2 is the July 2025 update of UNH Beta Model v1.1 (finalized
+May 2025) per Consultant Team recommendations at the end of the ARPA phase. The
+scoring logic is the v1.1 logic documented in Final_scoring_decisions.docx and
+the Model Eval Memo; v1.2 changes what is reported, not how criteria are scored,
+with one exception: the Habitat Quality criterion formerly called "habitat
+quality" is now "Habitat Condition Tier" (short code HCT, column HCTScr). v1.2
+also adds terrestrial wildlife connectivity (WlCo) and watershed water quality
+impairment (WWQI).
 
-Reporting changes in Beta v2:
+Reporting changes in v1.2:
   - Location and Landowner labels are added after SADES_ID.
   - Goal sheets and Final Results report the mean-substituted family only
     (FVMSRank / FVQualMS / TotScrMS / TotMSRank / TotQualMS). The dynamic Rank

@@ -1,5 +1,5 @@
 Field,Goal,Description
-SADES_ID,Identification,Unique crossing identifier from the Statewide Asset Data Exchange System (SADES). Used as the join key across every sheet and against the Beta v2 baseline.
+SADES_ID,Identification,Unique crossing identifier from the Statewide Asset Data Exchange System (SADES). Used as the join key across every sheet and against the default baseline.
 Location,Identification,"Plain-language location label built as 'stream at road, town' from StreamName, RoadNameF (or STREET) and Town. Where the stream is unnamed in SADES the label reads 'Unnamed stream'."
 Landowner,Identification,"Road owner or maintaining authority, copied from the OWNERSHIP_ field of the NHDOT road inventory (for example TOWN, PRIVATE, DISTRICT 6)."
 Town,Identification,Municipality recorded during the SADES field assessment.
@@ -27,9 +27,9 @@ FV_Present,Flood Vulnerability,Count of Flood Vulnerability criteria with data f
 FV_Missing,Flood Vulnerability,Count of Flood Vulnerability criteria without data for this crossing.
 ConfFV,Flood Vulnerability,"Data completeness for Flood Vulnerability, reported as 'present of total' criteria. A score built on few criteria is less reliable than one built on all of them."
 FVScrMS,Flood Vulnerability,Mean-substituted Flood Vulnerability score. Missing goal scores are filled with the mean of the non-missing goal scores before ranking and classification.
-FVMSRank,Flood Vulnerability,"Dense rank on FVScrMS, 1 = highest priority. This is the rank reported in the Beta v2 workbook."
+FVMSRank,Flood Vulnerability,"Dense rank on FVScrMS, 1 = highest priority. This is the rank reported in the v1.2 workbook."
 FVMSNrm,Flood Vulnerability,FVScrMS after min-max normalization to 0 to 1 across the crossings in the run.
-FVQualMS,Flood Vulnerability,"Jenks natural-breaks class of FVScrMS, Very Low to Very High. This is the class reported in the Beta v2 workbook."
+FVQualMS,Flood Vulnerability,"Jenks natural-breaks class of FVScrMS, Very Low to Very High. This is the class reported in the v1.2 workbook."
 UsUndermin,Environmental Quality,"Upstream undermining inventory (None, Footers, Culvert, Wing Walls, Abutments, and combinations)."
 DsUndermin,Environmental Quality,"Downstream undermining inventory (None, Footers, Culvert, Wing Walls, Abutments, and combinations)."
 UsObstruct,Environmental Quality,Obstruction of the structure opening recorded in the field.
@@ -56,7 +56,7 @@ Impair,Environmental Quality,"Reach-scale water quality impairment flag, display
 WQIScr,Environmental Quality,"Water quality impairment score. Impaired 1, not impaired 0. A crossing that is not flagged corresponds to a water body evaluated and found not to meet the impairment filter, so 0 is a determined absence rather than missing data."
 WWQI,Environmental Quality,Watershed water quality impairment flag. 1 where the crossing falls inside a HUC12-clipped impaired lake or impoundment watershed.
 WImpair,Environmental Quality,"Display form of WWQI, shown as 'Impaired' where the crossing falls inside an impaired watershed."
-WWQIScr,Environmental Quality,"Watershed water quality impairment score. Inside an impaired HUC12-clipped watershed 1, otherwise 0. New criterion in the Pilot and Beta v2 models."
+WWQIScr,Environmental Quality,"Watershed water quality impairment score. Inside an impaired HUC12-clipped watershed 1, otherwise 0. New criterion added in UNH Beta Model v1.2."
 AUIDs,Environmental Quality,"Assessment unit identifiers of the impaired water bodies intersecting the crossing, carried as a reference attribute."
 Impairmnts,Environmental Quality,"Impaired parameters recorded for the intersecting assessment units, carried as a reference attribute."
 SEros,Environmental Quality,Erosion score multiplied by its criterion weight.
@@ -88,7 +88,7 @@ UsSize,Structural Risk,"Upstream opening area, square feet. Computed as pi/4 tim
 SizeScr,Structural Risk,Size score from binned opening area. Over 0 to 7.07 sq ft scores 0; over 7.07 to 12.5 scores 0.02; over 12.5 to 16 scores 0.184; over 16 to 38.5 scores 0.51; over 38.5 scores 1. The 7.07 sq ft break is the area of a 3 ft diameter round culvert.
 StructMat,Structural Risk,Construction material of the structure.
 MatScr,Structural Risk,"Material score. Steel-Corrugated, Steel-Smooth and Aluminum-Corrugated score 1; Masonry and Stone 0.25; Concrete 0.111; Plastic-Corrugated and Plastic-Smooth 0.028; Other and Wood 0."
-CoverDepth,Structural Risk,"Depth of soil cover over the structure, feet. Retained as a field attribute only. The depth of cover criterion was removed from Structural Risk in the Pilot model and is not scored."
+CoverDepth,Structural Risk,"Depth of soil cover over the structure, feet. Retained as a field attribute only. The depth of cover criterion was removed from Structural Risk during scoring finalization (v1.1) and is not scored."
 SCond,Structural Risk,Condition score multiplied by its criterion weight.
 SSize,Structural Risk,Size score multiplied by its criterion weight.
 SMat,Structural Risk,Material score multiplied by its criterion weight.
@@ -132,7 +132,7 @@ AOPScr,Wildlife Connectivity,"Aquatic organism passage score. Full Passage 0, Re
 Sp_Sp_FG,Wildlife Connectivity,"Special species presence flag, displayed as 'Present'. Source: NH Fish and Game, six priority fish species (American Brook Lamprey, American Shad, River Herring, Sea Lamprey, wild Eastern Brook Trout, Red-fin Pickerel)."
 SpSpScr,Wildlife Connectivity,"Special species score. Confirmed presence scores 1; absence is NaN, because absence of a record more plausibly reflects incomplete survey coverage than confirmed absence. Admitted to the goal score only when the AOP score is greater than 0."
 WlCo,Wildlife Connectivity,"Wildlife corridor flag, displayed as 'Wildlife Corridor'. Point-in-polygon containment against the NH Fish and Game statewide wildlife connectivity model."
-WlCoScr,Wildlife Connectivity,"Wildlife corridor score. Inside a mapped corridor 1, otherwise 0. Because the corridor layer is a statewide modeled product, a 0 is a determined absence rather than missing data. New criterion in the Pilot and Beta v2 models."
+WlCoScr,Wildlife Connectivity,"Wildlife corridor score. Inside a mapped corridor 1, otherwise 0. Because the corridor layer is a statewide modeled product, a 0 is a determined absence rather than missing data. New criterion added in UNH Beta Model v1.2."
 SAOP,Wildlife Connectivity,Aquatic organism passage score multiplied by its criterion weight.
 SSpSp,Wildlife Connectivity,Special species score multiplied by its criterion weight.
 SWlCo,Wildlife Connectivity,Wildlife corridor score multiplied by the terrestrial organism passage criterion weight.
@@ -149,7 +149,7 @@ WLMSNrm,Wildlife Connectivity,WLScrMS after min-max normalization across the cro
 WLQualMS,Wildlife Connectivity,"Jenks natural-breaks class of WLScrMS, Very Low to Very High."
 WAP_TIER,Habitat Quality,"Habitat condition tier of the highest-ranked habitat polygon within 100 ft of the crossing, from the 2020 NH Wildlife Action Plan. Tier 1 highest ranked in the state, Tier 2 highest ranked in the biological region, Tier 3 supporting landscape. A tier of 0 (outside any ranked tier) is shown blank."
 HQ_WAP,Habitat Quality,"Numeric habitat condition tier value used as the criterion input. Tier 1 is 1.0, Tier 2 is 0.66, Tier 3 is 0.33, outside any ranked tier is 0."
-HCTScr,Habitat Quality,"Habitat Condition Tier criterion score, 0 to 1, taken from HQ_WAP. Renamed from habitat quality in the Pilot model to distinguish the criterion from the Habitat Quality goal. Outside any ranked tier is a real 0, since the Wildlife Action Plan ranking is statewide."
+HCTScr,Habitat Quality,"Habitat Condition Tier criterion score, 0 to 1, taken from HQ_WAP. Renamed from habitat quality in UNH Beta Model v1.2 to distinguish the criterion from the Habitat Quality goal. Outside any ranked tier is a real 0, since the Wildlife Action Plan ranking is statewide."
 Wetlnd,Habitat Quality,"Wetland proximity flag, displayed as 'Wetland Nearby'. A wetland from the National Wetlands Inventory (Riverine excluded) lies within 100 ft of the crossing."
 WtlndScr,Habitat Quality,"Wetland proximity score. Wetland within 100 ft scores 1, no qualifying wetland within 100 ft scores 0. Every crossing is checked against the same statewide layer, so 0 is a determined absence."
 ConsvStat,Habitat Quality,"Conservation status flag, displayed as 'Conserved Land'. Conserved or public land from the NH GRANIT Conservation/Public Lands layer lies within 100 ft of the crossing."
@@ -204,8 +204,8 @@ SSRMS,Total Score,Normalized mean-substituted Structural Risk score multiplied b
 SRCMS,Total Score,Normalized mean-substituted Road Criticality score multiplied by the Road Criticality goal weight.
 SWLMS,Total Score,Normalized mean-substituted Wildlife Connectivity score multiplied by the Wildlife Connectivity goal weight.
 SHQGMS,Total Score,Normalized mean-substituted Habitat Quality score multiplied by the Habitat Quality goal weight.
-TotScrMS,Total Score,"Mean-substituted total crossing score, 0 to 1. Built from the mean-substituted goal scores, so a crossing missing a goal score is not advantaged or penalized relative to crossings with complete data. This is the headline score of the Beta v2 workbook."
-TotMSRank,Total Score,"Dense rank on TotScrMS, 1 = highest priority. This is the headline rank of the Beta v2 workbook. Every goal sheet is sorted by it."
+TotScrMS,Total Score,"Mean-substituted total crossing score, 0 to 1. Built from the mean-substituted goal scores, so a crossing missing a goal score is not advantaged or penalized relative to crossings with complete data. This is the headline score of the v1.2 workbook."
+TotMSRank,Total Score,"Dense rank on TotScrMS, 1 = highest priority. This is the headline rank of the v1.2 workbook. Every goal sheet is sorted by it."
 RoundScoreMS,Total Score,TotScrMS rounded to two decimal places for reporting.
 TotQualMS,Total Score,"Jenks natural-breaks class of TotScrMS, Very Low to Very High. Classes are computed within the set of crossings in this run, so a filtered extent reclassifies against its own distribution."
 LocalPriority,Local Review,Blank column for local use. Enter 1 to flag a crossing as a local priority. Nothing in this column feeds back into the model.

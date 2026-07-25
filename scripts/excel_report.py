@@ -7,8 +7,8 @@ serve it through st.download_button without touching the filesystem.
 scripts/generate_excel_report.py is a thin command line wrapper around this same
 function, so the two workbooks cannot drift apart.
 
-Beta v2 workbook structure
---------------------------
+UNH Beta Model v1.2 workbook structure
+--------------------------------------
 Instructions           carried over from the ARPA-phase workbook and updated
 Flood Vulnerability    one sheet per goal, ordered by the Spring 2024 survey
 Road Criticality
@@ -18,7 +18,7 @@ Habitat Quality
 Environmental Quality
 Environmental Justice
 Final Results          every goal block plus cost and the total score
-Beta v2                default-weight, full-extent baseline, restricted to the
+Default Baseline (v1.2)  default-weight, full-extent baseline, restricted to the
                        crossings in this run (only when a baseline is supplied)
 All Results            complete field and score dump for this run
 
@@ -43,8 +43,8 @@ from utils import report_spec                      # noqa: E402
 from model import build_sheet_frame                # noqa: E402
 
 JOIN_KEY = report_spec.JOIN_KEY
-BETA_PREFIX = report_spec.BETA_PREFIX
-BETA_SHEET_NAME = "Beta v2"
+BASELINE_PREFIX = report_spec.BASELINE_PREFIX
+BASELINE_SHEET_NAME = "Default Baseline (v1.2)"
 ALL_SHEET_NAME = "All Results"
 INSTRUCTIONS_SHEET_NAME = "Instructions"
 
@@ -102,7 +102,7 @@ def _fill_missing_qual(df):
 
 
 def _attach_beta_columns(sheet_df, baseline_df, sheet_name):
-    """Left-join the Beta v2 baseline results onto ``sheet_df`` on SADES_ID.
+    """Left-join the default baseline results onto ``sheet_df`` on SADES_ID.
 
     The join is done on the string form of the key so that an integer key in one
     frame and a text key in the other still match. Crossings absent from the
@@ -111,7 +111,7 @@ def _attach_beta_columns(sheet_df, baseline_df, sheet_name):
     if baseline_df is None or JOIN_KEY not in sheet_df.columns:
         return sheet_df
 
-    cols = [c for c in report_spec.BETA_COMPARE_COLS.get(sheet_name, [])
+    cols = [c for c in report_spec.BASELINE_COMPARE_COLS.get(sheet_name, [])
             if c in baseline_df.columns]
     if not cols:
         return sheet_df
@@ -119,7 +119,7 @@ def _attach_beta_columns(sheet_df, baseline_df, sheet_name):
     right = baseline_df[[JOIN_KEY] + cols].copy()
     right["_join_key"] = right[JOIN_KEY].astype(str)
     right = right.drop_duplicates(subset="_join_key").set_index("_join_key")
-    right = right.drop(columns=[JOIN_KEY]).add_prefix(BETA_PREFIX)
+    right = right.drop(columns=[JOIN_KEY]).add_prefix(BASELINE_PREFIX)
 
     out = sheet_df.copy()
     out["_join_key"] = out[JOIN_KEY].astype(str)
@@ -130,7 +130,7 @@ def _attach_beta_columns(sheet_df, baseline_df, sheet_name):
 def _column_format(workbook, column, base):
     """Return a cell format for the data body of ``column``."""
     props = dict(base)
-    name = column[len(BETA_PREFIX):] if column.startswith(BETA_PREFIX) else column
+    name = column[len(BASELINE_PREFIX):] if column.startswith(BASELINE_PREFIX) else column
     if name in CURRENCY_COLUMNS:
         props["num_format"] = "$#,##0"
     elif name in RANK_COLUMNS:
@@ -161,7 +161,7 @@ def _write_sheet(writer, workbook, sheet_name, frame, tab_color, notes,
         {"bold": True, "italic": True, "bg_color": report_spec.SHEET_COLORS["Final Results"],
          "border": 1, "align": "center", "valign": "vcenter", "text_wrap": True})
     beta_hdr = workbook.add_format(
-        {"bold": True, "bg_color": report_spec.BETA_SHEET_COLOR, "border": 1,
+        {"bold": True, "bg_color": report_spec.BASELINE_SHEET_COLOR, "border": 1,
          "align": "center", "valign": "vcenter", "text_wrap": True})
     local_hdr = workbook.add_format(
         {"bold": True, "bg_color": "#F2F2F2", "border": 1, "align": "center",
@@ -181,7 +181,7 @@ def _write_sheet(writer, workbook, sheet_name, frame, tab_color, notes,
         # Header fill.
         if col in report_spec.USER_COLUMNS:
             fmt = local_hdr
-        elif col.startswith(BETA_PREFIX):
+        elif col.startswith(BASELINE_PREFIX):
             fmt = beta_hdr
         elif col in group_colors:
             fmt = group_colors[col]
@@ -369,18 +369,18 @@ def _write_instructions(workbook, baseline_used):
 
 def build_excel_report(df: pd.DataFrame, baseline_df: pd.DataFrame = None,
                        metadata_path=None) -> bytes:
-    """Build the Beta v2 workbook in memory and return it as bytes.
+    """Build the UNH Beta Model v1.2 workbook in memory and return it as bytes.
 
     Parameters
     ----------
     df : pd.DataFrame
         Scored results for this run, as returned by model.run_analysis.
     baseline_df : pd.DataFrame, optional
-        Beta v2 baseline results (default weightings, full extent), as written by
-        scripts/build_baseline.py. When supplied, Beta_ comparison columns are
-        appended to every sheet and a Beta v2 sheet is added holding the baseline
-        record for the crossings present in ``df``. Pass None for a default run,
-        where the comparison would be a copy of the run itself.
+        Default baseline results (default weightings, full extent), as written by
+        scripts/build_baseline.py. When supplied, Base_ comparison columns are
+        appended to every sheet and a Default Baseline sheet is added holding the
+        baseline record for the crossings present in ``df``. Pass None for a
+        default run, where the comparison would be a copy of the run itself.
     metadata_path : str or Path, optional
         Override for configs/metadata.csv.
     """
@@ -428,8 +428,8 @@ def build_excel_report(df: pd.DataFrame, baseline_df: pd.DataFrame = None,
             beta_frame = baseline_df[baseline_df[JOIN_KEY].astype(str).isin(keys)].copy()
             if report_spec.SORT_COLUMN in beta_frame.columns:
                 beta_frame = beta_frame.sort_values(report_spec.SORT_COLUMN, ascending=True)
-            _write_sheet(writer, workbook, BETA_SHEET_NAME, beta_frame,
-                         report_spec.BETA_SHEET_COLOR, notes)
+            _write_sheet(writer, workbook, BASELINE_SHEET_NAME, beta_frame,
+                         report_spec.BASELINE_SHEET_COLOR, notes)
 
         _write_sheet(writer, workbook, ALL_SHEET_NAME, df_all, "#5A6B75", notes)
 

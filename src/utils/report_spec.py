@@ -2,7 +2,7 @@
 
 Location in repo: src/utils/report_spec.py
 
-Before Beta v2 the sheet layout was declared three times: in
+Before UNH Beta Model v1.2 the sheet layout was declared three times: in
 ``src/model.py:save_results``, in ``scripts/excel_report.py`` and again in
 ``scripts/generate_excel_report.py``. The three copies had already drifted
 (``CoverDepth`` survived in one after the criterion was removed from the model,
@@ -13,7 +13,7 @@ in-memory workbook served by the Streamlit app cannot disagree.
 Contents:
   MODEL_VERSION       label printed by the CLI, the app header and the workbook
   SHEET_COLUMNS       column order per sheet, model outputs only
-  BETA_COMPARE_COLS   columns duplicated with the Beta_ prefix for comparison
+  BASELINE_COMPARE_COLS  columns duplicated with the Base_ prefix for comparison
   USER_COLUMNS        blank columns reserved for local review
   SHEET_COLORS        tab and header fill per sheet
   load_field_metadata reads configs/metadata.csv for the header hover notes
@@ -24,7 +24,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-MODEL_VERSION = "Beta v2"
+MODEL_VERSION = "UNH Beta Model v1.2"
+MODEL_VERSION_SHORT = "v1.2"
+PRIOR_VERSION = "UNH Beta Model v1.1"
 MODEL_TITLE = "Stream Crossing Prioritization Model"
 
 # repo root: utils/ -> src/ -> repo root
@@ -36,9 +38,9 @@ BASELINE_PATH = BASELINE_DIR / "baseline_all.csv.gz"
 JOIN_KEY = "SADES_ID"
 LEAD_COLUMNS = ["SADES_ID", "Location", "Landowner"]
 USER_COLUMNS = ["LocalPriority", "LocalNotes"]
-BETA_PREFIX = "Beta_"
+BASELINE_PREFIX = "Base_"
 
-# Sort key for every sheet. Beta v2 reports the mean-substituted family only.
+# Sort key for every sheet. v1.2 reports the mean-substituted family only.
 SORT_COLUMN = "TotMSRank"
 
 # Total-score block repeated at the right-hand end of every goal sheet.
@@ -71,13 +73,13 @@ SHEET_COLUMNS = {
 
     "Structural Risk": LEAD_COLUMNS + [
         # CoverDepth is deliberately absent: the depth-of-cover criterion was
-        # removed from Structural Risk in the Pilot model.
+        # removed from Structural Risk during scoring finalization (v1.1).
         "StructCond", "UsHwCon", "DsHwCon", "UsSize", "StructMat",
         "SRMSRank", "SRQualMS", "ConfSR",
     ] + TOTAL_BLOCK,
 
     "Wildlife Connectivity": LEAD_COLUMNS + [
-        "AOP_Score", "Sp_Sp_FG", "WlCo",          # WlCo added in the Pilot model
+        "AOP_Score", "Sp_Sp_FG", "WlCo",          # WlCo (terrestrial wildlife) added in v1.2
         "WLMSRank", "WLQualMS", "ConfWL",
     ] + TOTAL_BLOCK,
 
@@ -87,7 +89,7 @@ SHEET_COLUMNS = {
     ] + TOTAL_BLOCK,
 
     "Environmental Quality": LEAD_COLUMNS + [
-        "Erosion", "GC_Score", "Impair", "WImpair",   # WImpair added in the Pilot model
+        "Erosion", "GC_Score", "Impair", "WImpair",   # WImpair (watershed WQ) added in v1.2
         "EQMSRank", "EQQualMS", "ConfEQ",
     ] + TOTAL_BLOCK,
 
@@ -126,12 +128,13 @@ CSV_OUTPUT_NAMES = {
     "Final Results": "final_results",
 }
 
-# Columns re-read from the Beta v2 default-weight, full-extent baseline and
-# appended with the Beta_ prefix. Only model-derived results are duplicated.
+# Columns re-read from the default-weight, full-extent baseline (the default
+# UNH Beta Model v1.2 run) and appended with the Base_ prefix. Only
+# model-derived results are duplicated.
 # Raw field attributes (AADT, StructCond, ...) and the confidence strings are
 # properties of the crossing record, not of the run, so they are identical in
 # both runs and would only widen the sheet.
-BETA_COMPARE_COLS = {
+BASELINE_COMPARE_COLS = {
     "Flood Vulnerability": ["FVMSRank", "FVQualMS", "TotScrMS", "TotMSRank", "TotQualMS"],
     "Road Criticality": ["RCMSRank", "RCQualMS", "TotScrMS", "TotMSRank", "TotQualMS"],
     "Structural Risk": ["SRMSRank", "SRQualMS", "TotScrMS", "TotMSRank", "TotQualMS"],
@@ -157,7 +160,7 @@ SHEET_COLORS = {
     "Final Results": "#B3DE69",
 }
 
-BETA_SHEET_COLOR = "#BFBFBF"
+BASELINE_SHEET_COLOR = "#BFBFBF"
 LOCAL_SHEET_COLOR = "#FFFFFF"
 
 # Headers filled in the goal color on that goal's own sheet.
@@ -249,16 +252,17 @@ def load_field_metadata(path=None):
 
 
 def note_for(column, notes):
-    """Return the hover note for ``column``, resolving Beta_ prefixed columns
+    """Return the hover note for ``column``, resolving Base_ prefixed columns
     back to their base field."""
     if column in notes:
         return notes[column]
-    if column.startswith(BETA_PREFIX):
-        base = column[len(BETA_PREFIX):]
+    if column.startswith(BASELINE_PREFIX):
+        base = column[len(BASELINE_PREFIX):]
         if base in notes:
             return (
-                f"{column}\n\nBeta v2 baseline value of {base}, computed with the default "
-                f"survey-derived weightings over the full statewide extent.\n\n{notes[base]}"
+                f"{column}\n\nDefault-baseline value of {base}: the UNH Beta Model v1.2 "
+                "result computed with the default survey-derived weightings over the full "
+                f"statewide extent.\n\n{notes[base]}"
             )
     return None
 
