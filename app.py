@@ -109,7 +109,6 @@ def criterion_label(ck, key):
         return CRITERIA_KEY_ALIASES[key]
     return key.replace("_", " ").title()
 
-JENKS_ORDER = {"Very High": 4, "High": 3, "Moderate": 2, "Low": 1, "Very Low": 0}
 
 # Goal accent colors, matched to the workbook tab colors in
 # src/utils/report_spec.py so the interface and the Excel report read as one
@@ -353,6 +352,34 @@ def _style_qual(val):
 
 def _fmt_rank(v):
     return "" if pd.isna(v) else f"{v:.0f}"
+
+
+def _fmt_cost(v):
+    """Currency format for the Cost Estimate column; blank for missing."""
+    return "" if pd.isna(v) else f"${v:,.0f}"
+
+
+def _build_table_column_labels():
+    """Display headers for the Top Crossings table.
+
+    The workbook carries hover definitions on its coded headers, but the app
+    table has no such affordance, so the coded score columns are relabeled with
+    plain names here. Goal columns are derived from GOAL_LABELS / GOAL_QUAL_COL
+    so the two never drift apart.
+    """
+    labels = {
+        "TotMSRank": "Rank",
+        "TotQualMS": "Overall Priority",
+        "ConfTot": "Confidence",
+        "CostEstimate": "Cost Estimate",
+    }
+    for goal_key, qual_col in GOAL_QUAL_COL.items():
+        if qual_col:
+            labels[qual_col] = GOAL_LABELS[goal_key]
+    return labels
+
+
+TABLE_COLUMN_LABELS = _build_table_column_labels()
 
 
 # --------------------------------------------------------------------------- #
@@ -641,59 +668,57 @@ def filter_by_region(df, method, value):
 # --------------------------------------------------------------------------- #
 
 def rank_top_crossings(df, top_n=20):
-    """Sort by Jenks class (TotQualMS, highest first), then by confidence
-    (Tot_Present), then by TotMSRank as the final tiebreaker."""
-    if df.empty:
-        return df
-
-    ranked = df.copy()
-    ranked["_qual_order"] = ranked["TotQualMS"].map(JENKS_ORDER).fillna(-1) if "TotQualMS" in ranked.columns else -1
-    ranked["_confidence_order"] = ranked["Tot_Present"] if "Tot_Present" in ranked.columns else 0
-
-    sort_cols = ["_qual_order", "_confidence_order"]
-    ascending = [False, False]
-    if "TotMSRank" in ranked.columns:
-        sort_cols.append("TotMSRank")
-        ascending.append(True)
-
-    ranked = ranked.sort_values(sort_cols, ascending=ascending)
-    ranked = ranked.drop(columns=["_qual_order", "_confidence_order"])
+    """Return the ``top_n`` crossings ordered by TotMSRank (1 = highest
+    priority). Rows without a rank sort last."""
+    if df.empty or "TotMSRank" not in df.columns:
+        return df.head(top_n)
+    ranked = df.sort_values("TotMSRank", ascending=True, na_position="last")
     return ranked.head(top_n)
 
 
 def build_top_crossings_table(display_df):
     section_header(
         4, "Top Crossings",
-        "Sorted by Jenks class (Very High to Very Low), then by confidence (criteria "
-        "present out of total), then by total rank as a tiebreaker. A rank based on "
-        "2 of 18 criteria is far less reliable than one based on 16 of 18, so class "
-        "and confidence are emphasized over raw rank.",
+        "Ranked by overall crossing score; Rank 1 is the highest priority.",
     )
 
     top_n = st.slider("Number of top crossings to display", 5, 50, 20)
     top_df = rank_top_crossings(display_df, top_n=top_n)
 
-    show_cols = ["SADES_ID", "Location", "TotMSRank", "TotQualMS", "ConfTot"]
-    for _goal_key, qual_col in GOAL_QUAL_COL.items():
-        if qual_col and qual_col in top_df.columns:
-            show_cols.append(qual_col)
-    show_cols = [c for c in show_cols if c in top_df.columns]
-    qual_cols_present = [c for c in show_cols if c.endswith("QualMS") or c.endswith("Qual")]
+    # Identity, rank, cost, overall class and confidence, then the per-goal
+    # classes. Cost sits before the color-coded class block so the qual columns
+    # stay visually contiguous.
+    goal_cols = [qc for qc in GOAL_QUAL_COL.values() if qc]
+    ordered = ["SADES_ID", "Location", "TotMSRank", "CostEstimate",
+               "TotQualMS", "ConfTot"] + goal_cols
+    show_cols = [c for c in ordered if c in top_df.columns]
 
-    styler = top_df[show_cols].style
+    table = top_df[show_cols].rename(columns=TABLE_COLUMN_LABELS)
+
+    # Class columns to color-code, under their new display names.
+    qual_source = ["TotQualMS"] + goal_cols
+    qual_cols_present = [TABLE_COLUMN_LABELS.get(c, c) for c in qual_source if c in show_cols]
+
+    styler = table.style
     if qual_cols_present:
         if hasattr(styler, "map"):          # Styler.applymap renamed to map in pandas 2.1
             styler = styler.map(_style_qual, subset=qual_cols_present)
         else:
             styler = styler.applymap(_style_qual, subset=qual_cols_present)
-    if "TotMSRank" in show_cols:
-        styler = styler.format({"TotMSRank": _fmt_rank})   # integer rank, no trailing .00
+
+    number_formats = {}
+    if "Rank" in table.columns:
+        number_formats["Rank"] = _fmt_rank            # integer rank, no trailing .00
+    if "Cost Estimate" in table.columns:
+        number_formats["Cost Estimate"] = _fmt_cost   # e.g. $150,000
+    if number_formats:
+        styler = styler.format(number_formats)
 
     st.dataframe(styler, use_container_width=True, hide_index=True)
 
     st.download_button(
         "Download top crossings (CSV)",
-        data=top_df[show_cols].to_csv(index=False).encode("utf-8"),
+        data=table.to_csv(index=False).encode("utf-8"),
         file_name="top_crossings.csv",
         mime="text/csv",
     )
@@ -701,15 +726,23 @@ def build_top_crossings_table(display_df):
 
 def render_photo_browser(display_df):
     section_header(5, "Top Crossing Photos",
-                   "Photos load automatically for the ten highest-priority crossings. Use the selector to switch between them.")
+                   "Use the selector to view photos for any of the twenty highest-priority crossings.")
 
-    top10 = rank_top_crossings(display_df, top_n=10)
-    if top10.empty or "SADES_ID" not in top10.columns:
+    top20 = rank_top_crossings(display_df, top_n=20)
+    if top20.empty or "SADES_ID" not in top20.columns:
         st.caption("No crossings available for photos.")
         return
 
-    ids = top10["SADES_ID"].astype(str).tolist()
-    labels = [f"Rank {i + 1}: SADES_ID {sid}" for i, sid in enumerate(ids)]
+    ids = top20["SADES_ID"].astype(str).tolist()
+    ranks = top20["TotMSRank"].tolist() if "TotMSRank" in top20.columns else [None] * len(ids)
+    locs = top20["Location"].tolist() if "Location" in top20.columns else [""] * len(ids)
+
+    labels = []
+    for i, (sid, rnk, loc) in enumerate(zip(ids, ranks, locs)):
+        rank_txt = f"Rank {int(rnk)}" if pd.notna(rnk) else f"Rank {i + 1}"
+        loc_txt = f"{loc} " if isinstance(loc, str) and loc else ""
+        labels.append(f"{rank_txt}: {loc_txt}(SADES_ID {sid})")
+
     choice = st.selectbox("View photos for", labels, index=0, key="photo_pick")
     sid = ids[labels.index(choice)]
 
