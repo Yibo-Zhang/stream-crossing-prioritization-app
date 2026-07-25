@@ -278,7 +278,7 @@ def render_hero():
     st.markdown(
         """
         <div class="sc-hero">
-          <div class="sc-hero-eyebrow">Beta Model v1.2 &middot</div>
+          <div class="sc-hero-eyebrow">Beta Model v1.2&middot</div>
           <div class="sc-hero-title">Stream Crossing Prioritization</div>
           <p class="sc-hero-sub">Adjust goal and criterion weightings, choose an area of interest,
           then run the model to rank crossings for replacement and export the results.</p>
