@@ -126,12 +126,6 @@ GOAL_COLORS = {
 }
 
 
-def _safe_rerun():
-    """Call st.rerun (or the older experimental alias) if available."""
-    fn = getattr(st, "rerun", None) or getattr(st, "experimental_rerun", None)
-    if fn is not None:
-        fn()
-
 QUAL_COLORS = {
     "Very High": ("#d73027", "#ffffff"),
     "High": ("#fc8d59", "#3a1705"),
@@ -150,9 +144,9 @@ REGION_METHODS = {
 
 
 def fragment_decorator(func):
-    """Apply st.fragment (or the older experimental alias) if available.
-    Falls back to a no-op so the app still runs on older Streamlit."""
-    frag = getattr(st, "fragment", None) or getattr(st, "experimental_fragment", None)
+    """Apply st.fragment if available.
+    Falls back to a no-op so the app still runs on Streamlit older than 1.37."""
+    frag = getattr(st, "fragment", None)
     return frag(func) if frag is not None else func
 
 
@@ -496,6 +490,38 @@ def assemble_params(base_params):
     return params
 
 
+def reset_weights_to_defaults(base_params):
+    """Restore every weight widget to its params.json default.
+
+    Assignment is used rather than deletion of the session_state keys.
+    Deleting a widget key clears the server-side value, but it leaves
+    widget_value_changed False in Streamlit's widget registration, so the
+    set_value flag is omitted from the widget proto and the browser keeps
+    showing the value the user last set. Assigning the default marks the key
+    as a new session state value, which raises that flag and forces the
+    frontend to adopt the server value.
+
+    Must be called before the weight widgets are instantiated in the current
+    script run; SessionState.__setitem__ raises StreamlitAPIException for a
+    key whose widget has already been created in the same run.
+
+    Weights are cast to float because the sliders are float-typed by their
+    0.0 to 1.0 bounds, and an integer literal in params.json would otherwise
+    inject an int into a float widget.
+    """
+    for goal_key in GOAL_LABELS:
+        st.session_state[f"goal_on_{goal_key}"] = True
+        st.session_state[f"goal_w_{goal_key}"] = float(
+            base_params["goal_weights"][goal_key]
+        )
+
+        ck = GOAL_TO_CRITERIA_KEY.get(goal_key)
+        if ck and ck in base_params.get("criteria_weights", {}):
+            for crit, default_cw in base_params["criteria_weights"][ck].items():
+                st.session_state[f"crit_on_{ck}_{crit}"] = True
+                st.session_state[f"crit_w_{ck}_{crit}"] = float(default_cw)
+
+
 # --------------------------------------------------------------------------- #
 # Weightings (fragment: slider moves rerun only this block)
 # --------------------------------------------------------------------------- #
@@ -514,10 +540,11 @@ def weight_controls_fragment(base_params):
     with top_r:
         if st.button("Reset to defaults", use_container_width=True,
                      help="Restore every goal and criterion to its default weight and re-enable it."):
-            for k in list(st.session_state.keys()):
-                if k.startswith(("goal_on_", "goal_w_", "crit_on_", "crit_w_")):
-                    del st.session_state[k]
-            _safe_rerun()
+            # No explicit rerun: this button is rendered above the widget loop,
+            # so the assigned defaults are picked up by the sliders and
+            # checkboxes later in this same fragment pass, and by the chip
+            # summary immediately below.
+            reset_weights_to_defaults(base_params)
 
     active_goals = [
         GOAL_LABELS[g] for g in GOAL_LABELS
@@ -574,8 +601,10 @@ def weight_controls_fragment(base_params):
                         # habitat_quality -> Habitat Condition Tier rename.
                         for crit, default_cw in crit_items:
                             crit_lab = criterion_label(ck, crit)
-                            con = st.checkbox(f"Include: {crit_lab}", value=True,
-                                              key=f"crit_on_{ck}_{crit}", disabled=not on)
+                            con = st.checkbox(
+                                f"Include: {crit_lab}",
+                                value=st.session_state.get(f"crit_on_{ck}_{crit}", True),
+                                key=f"crit_on_{ck}_{crit}", disabled=not on)
                             st.slider(crit_lab, 0.0, 1.0, float(default_cw), 0.01,
                                       key=f"crit_w_{ck}_{crit}", disabled=not (on and con))
 
