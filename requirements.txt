@@ -1,15 +1,38 @@
-streamlit>=1.37.0
-pandas>=2.0
-numpy>=1.24
-pyyaml>=6.0
-xlsxwriter>=3.1
-jenkspy>=0.4.1
-openpyxl>=3.1.0
-geopandas>=0.14.0
-shapely>=2.0.0
-folium>=0.15.0
-streamlit-folium>=0.20.0
-requests>=2.31.0
-pyogrio>=0.7.0
-pytest==7.4.0
-black==23.3.0
+# =============================================================================
+# requirements.txt - Stream Crossing Prioritization App (UNH Beta Model v1.2)
+# Deployment target: Streamlit Community Cloud (1 GB memory ceiling)
+#
+# Pinning policy: lower bound = tested minimum, upper bound = next major (or
+# next minor where the package has a history of breaking within a major line).
+# Streamlit Cloud resolves dependencies at build time and does not use a lock
+# file, so an unbounded requirement means an unannounced upgrade on every
+# rebuild.
+# =============================================================================
+
+# Web application. st.fragment requires >= 1.37.0 (see app.py docstring).
+streamlit>=1.37.0,<1.62
+
+# Transitive pin on a Streamlit dependency, see note [1] below.
+starlette>=1.3.1,<1.4.0
+
+# Data manipulation. pandas capped below 3.0, see note [2].
+pandas>=2.2.0,<3.0
+numpy>=1.24,<3.0
+
+# Spatial. Floor raised to 1.0.1, see note [3].
+geopandas>=1.0.1,<2.0
+shapely>=2.0.0,<3.0
+pyogrio>=0.7.0,<1.0
+
+# Mapping
+folium>=0.15.0,<0.21
+streamlit-folium>=0.20.0,<0.28
+
+# Jenks natural breaks classification, see note [4].
+jenkspy>=0.4.1,<0.5
+
+# Excel report writer
+xlsxwriter>=3.1,<4.0
+
+# SADES photo attachment service
+requests>=2.31.0,<3.0
