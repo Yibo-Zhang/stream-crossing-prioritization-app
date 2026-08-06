@@ -9,6 +9,13 @@ Condition Tier, and reports the mean-substituted ranking family. The Excel
 export adds a default-baseline comparison whenever the user departs from the
 default weightings or the full statewide extent.
 
+Weighting presentation scale:
+  - Goal and criterion weights are presented on a coarse whole-number scale,
+    either 0 to 4 or 0 to 10, chosen at the top of the Weightings section. The
+    selected integer is divided by the scale maximum before the weights reach
+    the model, so run_analysis still receives weights on 0 to 1.
+  - Changing the scale returns every weight to its default on the new scale.
+
 Performance model (Option B):
   - Weight controls live in a fragment: moving a slider reruns only that block,
     not the map or results.
@@ -110,6 +117,64 @@ def criterion_label(ck, key):
     if key in CRITERIA_KEY_ALIASES:
         return CRITERIA_KEY_ALIASES[key]
     return key.replace("_", " ").title()
+
+
+# --------------------------------------------------------------------------- #
+# Weighting presentation scale
+#
+# NHDES review found that two-decimal weights imply more precision than the
+# survey-derived Relative Importance Index supports in practice, and that
+# reviewers could not act on the difference between, for example, 0.66 and
+# 0.67. Weights are therefore set in whole numbers on a coarse scale and
+# divided by the scale maximum before they reach the model, so that
+# params["goal_weights"] and params["criteria_weights"] stay on 0 to 1 exactly
+# as model.py expects.
+#
+# The division itself changes nothing. Both aggregation levels are normalized
+# weighted averages: model.calculate_total_score and each goal module return
+# num / den, where den is the sum of the weights of the terms that are not
+# missing, so multiplying every weight in a group by a constant leaves the
+# score, the rank, and the Jenks class unchanged. What does change the result
+# is rounding the defaults onto whole steps, which is why
+# render_scale_selector() reports the mapping in force.
+# --------------------------------------------------------------------------- #
+
+WEIGHT_SCALES = {"0 to 4": 4, "0 to 10": 10}
+DEFAULT_SCALE_LABEL = "0 to 4"
+
+# Widget key for the scale selector, and the bookkeeping key recording which
+# scale the current weight values were built for.
+SCALE_KEY = "weight_scale_label"
+SCALE_APPLIED_KEY = "weight_scale_applied"
+
+
+def current_scale_max():
+    """Return the maximum of the selected presentation scale (4 or 10)."""
+    label = st.session_state.get(SCALE_KEY, DEFAULT_SCALE_LABEL)
+    return WEIGHT_SCALES.get(label, WEIGHT_SCALES[DEFAULT_SCALE_LABEL])
+
+
+def to_display_units(weight, scale_max):
+    """Convert a 0 to 1 model weight to a whole number on the display scale.
+
+    Rounding is half away from zero rather than the half-to-even rule of the
+    built-in round(), so a weight landing exactly on a half step (0.875 on the
+    0 to 4 scale) always moves up instead of toward the nearest even integer.
+    Values outside 0 to 1 are clipped, which matters only if a hand-edited
+    params.json carries a weight outside that range.
+    """
+    scaled = float(weight) * scale_max
+    return int(min(max(np.floor(scaled + 0.5), 0), scale_max))
+
+
+def to_model_weight(display_value, scale_max):
+    """Convert a whole number on the display scale back to a 0 to 1 weight."""
+    return float(display_value) / float(scale_max)
+
+
+def snap_weight(weight, scale_max):
+    """Return the 0 to 1 weight actually used after display-scale rounding."""
+    return to_model_weight(to_display_units(weight, scale_max), scale_max)
 
 
 # Goal accent colors, matched to the workbook tab colors in
@@ -471,12 +536,21 @@ def cached_photo_urls(sades_id):
 
 def assemble_params(base_params):
     """Build the params dict from the current weight-widget state in
-    st.session_state. Reading from session_state (rather than widget return
-    values) lets the weight widgets live inside a fragment."""
+    st.session_state, converting the display-scale integers back to the 0 to 1
+    weights the model expects. Reading from session_state (rather than widget
+    return values) lets the weight widgets live inside a fragment.
+
+    The fallbacks cover the first script run, before the widgets exist. They
+    use the rounded default rather than the raw params.json value so that a run
+    always matches what the sliders show.
+    """
+    scale_max = current_scale_max()
     params = copy.deepcopy(base_params)
     for goal_key in GOAL_LABELS:
         on = st.session_state.get(f"goal_on_{goal_key}", True)
-        w = st.session_state.get(f"goal_w_{goal_key}", base_params["goal_weights"][goal_key])
+        display = st.session_state.get(f"goal_w_{goal_key}")
+        w = (to_model_weight(display, scale_max) if display is not None
+             else snap_weight(base_params["goal_weights"][goal_key], scale_max))
         params["goal_weights"][goal_key] = w if on else 0.0
 
         ck = GOAL_TO_CRITERIA_KEY.get(goal_key)
@@ -485,13 +559,43 @@ def assemble_params(base_params):
             # renamed between model versions cannot raise a KeyError here.
             for crit, default_cw in base_params["criteria_weights"][ck].items():
                 con = st.session_state.get(f"crit_on_{ck}_{crit}", True)
-                cw = st.session_state.get(f"crit_w_{ck}_{crit}", default_cw)
+                crit_display = st.session_state.get(f"crit_w_{ck}_{crit}")
+                cw = (to_model_weight(crit_display, scale_max) if crit_display is not None
+                      else snap_weight(default_cw, scale_max))
                 params["criteria_weights"][ck][crit] = cw if con else 0.0
     return params
 
 
-def reset_weights_to_defaults(base_params):
-    """Restore every weight widget to its params.json default.
+def _default_weight_state(base_params, scale_max):
+    """Map every weight-widget key to its default value on the given scale.
+
+    Single source of truth for the defaults: the same mapping initializes the
+    widgets, resets them, and tests whether the user has moved anything.
+    Criterion keys are read from params.json rather than from CRITERIA_LABELS,
+    so a criterion renamed between model versions cannot raise a KeyError, and
+    a goal with no criteria group (environmental_justice) is skipped by the
+    GOAL_TO_CRITERIA_KEY.get() guard.
+
+    Weight values are whole numbers on the display scale, matching the integer
+    sliders; the toggle values are booleans.
+    """
+    state = {}
+    for goal_key in GOAL_LABELS:
+        state[f"goal_on_{goal_key}"] = True
+        state[f"goal_w_{goal_key}"] = to_display_units(
+            base_params["goal_weights"][goal_key], scale_max
+        )
+
+        ck = GOAL_TO_CRITERIA_KEY.get(goal_key)
+        if ck and ck in base_params.get("criteria_weights", {}):
+            for crit, default_cw in base_params["criteria_weights"][ck].items():
+                state[f"crit_on_{ck}_{crit}"] = True
+                state[f"crit_w_{ck}_{crit}"] = to_display_units(default_cw, scale_max)
+    return state
+
+
+def reset_weights_to_defaults(base_params, scale_max):
+    """Restore every weight widget to its default on the given scale.
 
     Assignment is used rather than deletion of the session_state keys.
     Deleting a widget key clears the server-side value, but it leaves
@@ -504,36 +608,127 @@ def reset_weights_to_defaults(base_params):
     Must be called before the weight widgets are instantiated in the current
     script run; SessionState.__setitem__ raises StreamlitAPIException for a
     key whose widget has already been created in the same run.
-
-    Weights are cast to float because the sliders are float-typed by their
-    0.0 to 1.0 bounds, and an integer literal in params.json would otherwise
-    inject an int into a float widget.
     """
-    for goal_key in GOAL_LABELS:
-        st.session_state[f"goal_on_{goal_key}"] = True
-        st.session_state[f"goal_w_{goal_key}"] = float(
-            base_params["goal_weights"][goal_key]
-        )
+    for key, value in _default_weight_state(base_params, scale_max).items():
+        st.session_state[key] = value
 
-        ck = GOAL_TO_CRITERIA_KEY.get(goal_key)
-        if ck and ck in base_params.get("criteria_weights", {}):
-            for crit, default_cw in base_params["criteria_weights"][ck].items():
-                st.session_state[f"crit_on_{ck}_{crit}"] = True
-                st.session_state[f"crit_w_{ck}_{crit}"] = float(default_cw)
+
+def ensure_weight_state(base_params):
+    """Initialize the weight widgets, and reset them when the scale changes.
+
+    Returns the maximum of the scale now in force. On the first script run the
+    bookkeeping key is absent, so every widget value is written at the default
+    scale. When the user picks the other scale the stored maximum no longer
+    matches and every weight returns to its default on the new scale, which is
+    the agreed behavior: carrying an integer across scales would silently
+    change its meaning, because 3 is a weight of 0.75 on the 0 to 4 scale and
+    0.30 on the 0 to 10 scale.
+
+    Because this rewrites the weight keys, it must run before any weight widget
+    is created in the current script run.
+    """
+    scale_max = current_scale_max()
+    if st.session_state.get(SCALE_APPLIED_KEY) != scale_max:
+        reset_weights_to_defaults(base_params, scale_max)
+        st.session_state[SCALE_APPLIED_KEY] = scale_max
+    return scale_max
+
+
+def weights_at_scale_defaults(base_params, scale_max):
+    """True when no weight widget has been moved off its default."""
+    return all(
+        st.session_state.get(key) == value
+        for key, value in _default_weight_state(base_params, scale_max).items()
+    )
 
 
 # --------------------------------------------------------------------------- #
 # Weightings (fragment: slider moves rerun only this block)
 # --------------------------------------------------------------------------- #
 
+def render_scale_selector(base_params):
+    """Render the weighting scale picker and return the scale maximum in force.
+
+    The picker is created before ensure_weight_state() runs, so session_state
+    already carries the new selection when the weight values are rebuilt for
+    it. The selector holds its own value through the widget key rather than an
+    index argument, which keeps Streamlit from receiving both a default and a
+    session state entry for the same widget.
+    """
+    if SCALE_KEY not in st.session_state:
+        st.session_state[SCALE_KEY] = DEFAULT_SCALE_LABEL
+
+    pick_col, note_col = st.columns([1, 2])
+    with pick_col:
+        st.radio(
+            "Weighting scale",
+            list(WEIGHT_SCALES.keys()),
+            key=SCALE_KEY,
+            horizontal=True,
+            help="Whole-number scale used by every goal and criterion slider. "
+                 "Switching scales returns all weights to their defaults.",
+        )
+
+    scale_max = ensure_weight_state(base_params)
+
+    with note_col:
+        st.caption(
+            f"Every slider moves in whole steps from 0 to {scale_max}. Each step is "
+            f"divided by {scale_max} before the model runs, so a slider at {scale_max} "
+            f"is a weight of 1.00 and a slider at 0 drops that goal or criterion "
+            f"from the score."
+        )
+
+    with st.expander("How this scale maps to the model weights", expanded=False):
+        st.markdown(
+            "Goal and criterion scores are weighted averages, so only the ratios "
+            "between weights affect the result: dividing every slider by the scale "
+            "maximum changes no score, no rank, and no priority class. Rounding the "
+            "survey values onto whole steps does change them. On the 0 to 4 scale "
+            "several goals the survey placed apart share a step, and the coarser the "
+            "scale, the more of that separation is lost. Runs at these defaults will "
+            "therefore differ from the committed Default Baseline (v1.2), which uses "
+            "the unrounded survey values, and the Excel export carries the baseline "
+            "comparison columns so the difference stays visible."
+        )
+        rows = []
+        for goal_key, goal_label in GOAL_LABELS.items():
+            survey_w = float(base_params["goal_weights"][goal_key])
+            steps = to_display_units(survey_w, scale_max)
+            rows.append({
+                "Goal": goal_label,
+                "Weight": "Goal weight",
+                "Survey value": round(survey_w, 2),
+                "Default step": steps,
+                "Model weight": round(to_model_weight(steps, scale_max), 2),
+            })
+            ck = GOAL_TO_CRITERIA_KEY.get(goal_key)
+            if ck and ck in base_params.get("criteria_weights", {}):
+                for crit, default_cw in base_params["criteria_weights"][ck].items():
+                    crit_steps = to_display_units(default_cw, scale_max)
+                    rows.append({
+                        "Goal": goal_label,
+                        "Weight": criterion_label(ck, crit),
+                        "Survey value": round(float(default_cw), 2),
+                        "Default step": crit_steps,
+                        "Model weight": round(to_model_weight(crit_steps, scale_max), 2),
+                    })
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+    return scale_max
+
+
 @fragment_decorator
 def weight_controls_fragment(base_params):
     section_header(
         1, "Weightings",
-        "Toggle a goal off to exclude it from the composite score. Sliders start "
-        "at the survey-derived defaults and adjust from 0 to 1. Changes take effect "
-        "on the next run.",
+        "Choose a weighting scale, then set each goal and criterion in whole numbers. "
+        "Toggle a goal off to exclude it from the composite score. Sliders start at the "
+        "survey-derived defaults, rounded to the nearest step on the chosen scale. "
+        "Changes take effect on the next run.",
     )
+
+    scale_max = render_scale_selector(base_params)
 
     # Reset control and a live summary of how many goals are active.
     top_l, top_r = st.columns([3, 1])
@@ -544,7 +739,7 @@ def weight_controls_fragment(base_params):
             # so the assigned defaults are picked up by the sliders and
             # checkboxes later in this same fragment pass, and by the chip
             # summary immediately below.
-            reset_weights_to_defaults(base_params)
+            reset_weights_to_defaults(base_params, scale_max)
 
     active_goals = [
         GOAL_LABELS[g] for g in GOAL_LABELS
@@ -573,7 +768,6 @@ def weight_controls_fragment(base_params):
         for col, goal_key in zip(row_cols, row_keys):
             label = GOAL_LABELS[goal_key]
             color = GOAL_COLORS.get(goal_key, "#5A6B75")
-            default_w = base_params["goal_weights"][goal_key]
             on = st.session_state.get(f"goal_on_{goal_key}", True)
             with col:
                 # Colored goal header tied to the workbook's goal color.
@@ -583,8 +777,12 @@ def weight_controls_fragment(base_params):
                     f'<span class="sc-goalstate">{"active" if on else "excluded"}</span></div>',
                     unsafe_allow_html=True,
                 )
-                on = st.checkbox("Include this goal", value=on, key=f"goal_on_{goal_key}")
-                st.slider("Goal weight", 0.0, 1.0, float(default_w), 0.01,
+                # No value= argument on the weight widgets: ensure_weight_state()
+                # has already put every key in session_state, and passing both a
+                # default and a session state entry for one widget is what raises
+                # Streamlit's duplicate-value warning.
+                on = st.checkbox("Include this goal", key=f"goal_on_{goal_key}")
+                st.slider(f"Goal weight (0 to {scale_max})", 0, scale_max, step=1,
                           key=f"goal_w_{goal_key}", disabled=not on)
 
                 ck = GOAL_TO_CRITERIA_KEY.get(goal_key)
@@ -599,13 +797,12 @@ def weight_controls_fragment(base_params):
                         # criterion cannot raise a KeyError. Labels resolve
                         # through criterion_label(), which tolerates the
                         # habitat_quality -> Habitat Condition Tier rename.
-                        for crit, default_cw in crit_items:
+                        for crit, _default_cw in crit_items:
                             crit_lab = criterion_label(ck, crit)
                             con = st.checkbox(
                                 f"Include: {crit_lab}",
-                                value=st.session_state.get(f"crit_on_{ck}_{crit}", True),
                                 key=f"crit_on_{ck}_{crit}", disabled=not on)
-                            st.slider(crit_lab, 0.0, 1.0, float(default_cw), 0.01,
+                            st.slider(crit_lab, 0, scale_max, step=1,
                                       key=f"crit_w_{ck}_{crit}", disabled=not (on and con))
 
 
@@ -881,6 +1078,30 @@ def main():
             st.warning("No crossings match the current selection. Choose a different area.")
             st.stop()
 
+        # A whole-number scale puts zero one step away from the lowest non-zero
+        # setting, so these two states are now easy to reach by accident. With
+        # every goal at zero the composite denominator is zero for every
+        # crossing and model.calculate_total_score returns NaN, which would
+        # produce an empty ranking rather than an error, so the run is blocked.
+        if sum(float(w) for w in params["goal_weights"].values()) <= 0:
+            st.warning("Every goal weight is set to zero, so no crossing can be scored. "
+                       "Raise at least one goal weight, then run again.")
+            st.stop()
+
+        # A goal whose criteria are all zero degrades rather than fails: its
+        # score is NaN for every crossing, so the goal drops out of the
+        # composite for every crossing. That is worth stating, not blocking.
+        zeroed_goals = [
+            GOAL_LABELS[goal_key]
+            for goal_key, ck in GOAL_TO_CRITERIA_KEY.items()
+            if float(params["goal_weights"].get(goal_key, 0.0)) > 0
+            and sum(float(w) for w in params["criteria_weights"].get(ck, {}).values()) <= 0
+        ]
+        if zeroed_goals:
+            st.warning("Every criterion is set to zero for " + ", ".join(zeroed_goals)
+                       + ". These goals cannot be scored and will be left out of the "
+                         "composite score for every crossing.")
+
         run_df = filtered_df
         with st.spinner("Running model..."):
             try:
@@ -913,7 +1134,18 @@ def main():
             st.session_state["excel_bytes"] = None
             st.session_state["excel_error"] = str(e)
 
-        scope = "default weightings, full extent" if default_run else "custom weightings or filtered extent"
+        # is_default_run() compares against the unrounded params.json weights, so
+        # a run left at the rounded defaults is correctly treated as a departure
+        # from the committed baseline and keeps the Base_ comparison columns. The
+        # message below separates that case from one where a slider was moved.
+        scale_label = st.session_state.get(SCALE_KEY, DEFAULT_SCALE_LABEL)
+        full_extent = method == "all" and value is None
+        if default_run:
+            scope = "default weightings, full extent"
+        elif full_extent and weights_at_scale_defaults(base_params, current_scale_max()):
+            scope = f"default weightings rounded to the {scale_label} scale, full extent"
+        else:
+            scope = "custom weightings or filtered extent"
         st.success(f"Analysis complete: {len(display_df)} crossings scored ({scope}).")
 
     # Map (and results) are only rendered after a run has produced a
