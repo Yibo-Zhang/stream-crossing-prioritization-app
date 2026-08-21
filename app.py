@@ -34,6 +34,7 @@ Requires Streamlit 1.37 or newer for st.fragment.
 import sys
 import json
 import copy
+import datetime
 from pathlib import Path
 
 import streamlit as st
@@ -46,6 +47,7 @@ sys.path.insert(0, str(Path(__file__).parent / "scripts"))
 from model import run_analysis  # noqa: E402
 from utils import gis_utils  # noqa: E402  (src/utils/gis_utils.py)
 from excel_report import build_excel_report  # noqa: E402  (scripts/excel_report.py)
+from utils.validation import validate_dataset_report, apply_null_codes  # noqa: E402
 
 st.set_page_config(
     page_title="Stream Crossing Prioritization Model (UNH Beta Model v1.2)",
@@ -1031,6 +1033,55 @@ def results_fragment():
 # Main
 # --------------------------------------------------------------------------- #
 
+def validate_and_prepare(df, params):
+    """Validate the input, convert reviewed null-coded markers, and report.
+
+    The CLI has run validation since v1.1, but the app did not: an unreviewed
+    categorical value reached the score maps, produced NaN, and lowered the
+    confidence count with nothing said. The app now runs the same check the CLI
+    runs, so the two cannot disagree about whether a file is usable.
+
+    Returns (df, warnings), or (None, None) when the run must not proceed.
+    There is deliberately no bypass control in the interface: an unrecognized
+    value is a one-time configuration decision, not something to click past on
+    every run.
+    """
+    rules = params.get("validation")
+    if not rules:
+        return df, []
+
+    report = validate_dataset_report(
+        df, rules,
+        null_values=params.get("null_values"),
+        score_maps=params.get("score_maps"))
+
+    if not report.ok:
+        st.error(
+            "The input data contains categorical values the model has not been "
+            "told how to handle, so it cannot be scored. Each value below needs "
+            "to be reviewed once and added to configs/params.json: to that "
+            "field's \"null_values\" list if it marks a crossing that could not "
+            "be scored, or to its \"enum\" with a matching \"score_maps\" entry "
+            "if it is a real category.")
+        for message in report.errors:
+            st.markdown(f"- {message}")
+        return None, None
+
+    for message in report.warnings:
+        st.warning(message)
+
+    # The conversion itself is not surfaced in the interface. The markers mean
+    # the criterion could not be scored at that crossing, which is the same
+    # information a blank cell carries, and every run of a real SADES extract
+    # hits thousands of them. Reporting a routine, expected conversion on every
+    # run trains the reader to dismiss the notice area, which is where genuine
+    # warnings appear. The per-crossing effect is already visible where it
+    # matters, in the confidence columns of the results.
+    df, _ = apply_null_codes(df, rules, null_values=params.get("null_values"))
+
+    return df, list(report.warnings)
+
+
 def main():
     inject_css()
     render_hero()
@@ -1062,7 +1113,8 @@ def main():
     # displayed results always match the selection they were run against.
     current_sig = f"{data_token}|{method}|{value}"
     if st.session_state.get("result_sig") not in (None, current_sig):
-        for k in ("result_df", "result_sig", "excel_bytes", "excel_error"):
+        for k in ("result_df", "result_sig", "excel_bytes", "excel_error",
+                  "run_context"):
             st.session_state.pop(k, None)
 
     filtered_df = filter_by_region(df, method, value)
@@ -1102,10 +1154,14 @@ def main():
                        + ". These goals cannot be scored and will be left out of the "
                          "composite score for every crossing.")
 
-        run_df = filtered_df
+        run_df, validation_warnings = validate_and_prepare(
+            filtered_df.copy(), params)
+        if run_df is None:
+            st.stop()
+
         with st.spinner("Running model..."):
             try:
-                result_df = run_analysis(run_df.copy(), params)
+                result_df = run_analysis(run_df, params)
             except Exception as e:
                 st.error(f"The model could not complete: {e}")
                 st.stop()
@@ -1127,8 +1183,37 @@ def main():
                 "the Excel export will omit the default-baseline comparison columns. Run "
                 "scripts/build_baseline.py once and commit the result to enable it."
             )
+        # Recorded on the Run Settings sheet so a saved workbook states what it
+        # is a result of. Both inputs matter: Jenks classes and min-max
+        # normalisation are computed across the crossings in the run, so the
+        # extent changes the classes even when no weight is moved.
+        run_context = {
+            "region_method_label": next(
+                (label for label, key in REGION_METHODS.items() if key == method),
+                method),
+            "region_value": value,
+            "crossings_scored": len(display_df),
+            "crossings_available": len(df),
+            "input_label": (uploaded.name if uploaded is not None
+                            else "Bundled demo dataset (data/input/crossings.csv)"),
+            "run_timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "weight_scale": st.session_state.get(SCALE_KEY, DEFAULT_SCALE_LABEL),
+            # The slider maximum, so the Run Settings sheet can tell a slider
+            # left at its default position from one the user actually moved.
+            # A survey default of 0.875 shows as a slider at 4 on the 0 to 4
+            # scale and reaches the model as 1.00; without the scale that
+            # untouched slider would be reported as changed.
+            "weight_scale_max": current_scale_max(),
+            "default_goal_weights": base_params.get("goal_weights", {}),
+            "default_criteria_weights": base_params.get("criteria_weights", {}),
+            "validation_warnings": validation_warnings,
+        }
+        st.session_state["run_context"] = run_context
+
         try:
-            st.session_state["excel_bytes"] = build_excel_report(display_df, baseline_df=baseline_df)
+            st.session_state["excel_bytes"] = build_excel_report(
+                display_df, baseline_df=baseline_df, params=params,
+                run_context=run_context)
             st.session_state.pop("excel_error", None)
         except Exception as e:
             st.session_state["excel_bytes"] = None

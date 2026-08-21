@@ -36,9 +36,19 @@ BASELINE_DIR = REPO_ROOT / "data" / "baseline"
 BASELINE_PATH = BASELINE_DIR / "baseline_all.csv.gz"
 
 JOIN_KEY = "SADES_ID"
-LEAD_COLUMNS = ["SADES_ID", "Location", "Landowner"]
+
+# Identification block repeated at the left of every sheet.
+#   Town       emitted as its own column so a reviewer can sort, filter and
+#              group at a municipal, regional or watershed scale. It is also
+#              embedded in the Location label, which cannot be filtered on.
+#   SurveyDate date of the SADES field assessment, placed after Landowner so
+#              the currency of the underlying survey sits beside the rank.
+LEAD_COLUMNS = ["SADES_ID", "Location", "Town", "Landowner", "SurveyDate"]
 USER_COLUMNS = ["LocalPriority", "LocalNotes"]
 BASELINE_PREFIX = "Base_"
+
+# Frozen panes keep the identification block visible while scrolling right.
+FREEZE_COLUMNS = len(LEAD_COLUMNS)
 
 # Sort key for every sheet. v1.2 reports the mean-substituted family only.
 SORT_COLUMN = "TotMSRank"
@@ -111,7 +121,7 @@ SHEET_COLUMNS = {
         "HQGMSRank", "HQGQualMS",
         "Erosion", "GC_Score", "Impair", "WImpair",
         "EQMSRank", "EQQualMS",
-        "EJ", "CostEstimate", "ConfTot",
+        "EJ", "CostEstimate", "CostBasis", "ConfTot",
         "TotScrMS", "TotMSRank", "RoundScoreMS", "TotQualMS",
     ],
 }
@@ -189,8 +199,8 @@ FINAL_GROUP_COLS = {
     "Environmental Quality": ["Erosion", "GC_Score", "Impair", "WImpair",
                               "EQMSRank", "EQQualMS"],
     "Environmental Justice": ["EJ"],
-    "Final Results": ["CostEstimate", "ConfTot", "TotScrMS", "TotMSRank",
-                      "RoundScoreMS", "TotQualMS"],
+    "Final Results": ["CostEstimate", "CostBasis", "ConfTot", "TotScrMS",
+                      "TotMSRank", "RoundScoreMS", "TotQualMS"],
 }
 
 # Goal definitions reproduced on the Instructions sheet, carried over from the
@@ -302,3 +312,68 @@ def round_cost(series, base=10000, mode="up"):
         scaled = np.ceil(values / base)
 
     return (scaled * base).where(values.notna())
+
+
+# --------------------------------------------------------------------------- #
+# Instructions: header colour key
+#
+# Reproduced on the Instructions sheet so a reader can decode the header fills
+# without opening the documentation. The three model-result fills are the ones
+# a reader has to tell apart; the two input fills are included so the key
+# accounts for every colour on a sheet.
+# --------------------------------------------------------------------------- #
+
+HEADER_COLOR_KEY = [
+    ("Goal colour",
+     None,  # resolved per sheet, this sheet's own tab colour
+     "Model results for the goal this sheet covers, for example FVMSRank and "
+     "FVQualMS on the Flood Vulnerability sheet. Each goal keeps the colour of "
+     "its own tab."),
+    ("Green",
+     SHEET_COLORS["Final Results"],
+     "Total Crossing Score results, shown in italics. These combine every "
+     "available goal score for the crossing (TotScrMS, TotMSRank, TotQualMS, "
+     "RoundScoreMS, ConfTot) and are repeated at the right-hand end of every "
+     "sheet so a goal result can be read against the overall priority."),
+    ("Grey",
+     BASELINE_SHEET_COLOR,
+     "Total Project Area score comparison. Columns prefixed Base_ hold the same "
+     "result computed with the default survey-derived weightings over the full "
+     "project area, so a filtered or re-weighted run can be compared against "
+     "the project-wide default. Present only when the run departs from that "
+     "default."),
+    ("White",
+     "#FFFFFF",
+     "Raw input data carried from the SADES assessment or the NHDOT road "
+     "inventory, unmodified, together with the identification columns."),
+    ("Light grey",
+     "#F2F2F2",
+     "Blank columns left for local review: LocalPriority and LocalNotes."),
+]
+
+# Note attached to the CostEstimate header and repeated on the Instructions and
+# Definitions sheets. Stated in one place so the three cannot drift.
+COST_ESTIMATE_NOTE = (
+    "Planning-level replacement cost estimate. It does not enter the priority "
+    "score and does not affect any rank or priority class: it is reported "
+    "beside the results as a budgeting reference only.\n\n"
+    "No cost is calculated for a crossing with no bankfull width measurement "
+    "(AvgBFW of zero or blank), because the required replacement width cannot "
+    "be established from the survey. A blank CostEstimate therefore means "
+    "\"not estimated\", never \"no cost\". The CostBasis column states the "
+    "reason for each crossing.\n\n"
+    "The estimate is a parametric figure from structure length, required width "
+    "and a road-tier multiplier. It is not an engineer's estimate and carries "
+    "none of the site-specific costs that dominate a real project, such as "
+    "utility relocation, traffic management, right-of-way or permitting."
+)
+
+LOCAL_PRIORITY_NOTE = (
+    "Optional local override, entered by the reviewing community, not by the "
+    "model.\n\n"
+    "    1  raise this crossing as a local priority\n"
+    "    0  set this crossing aside, that is, deprioritise it locally\n"
+    "  blank  no local position recorded\n\n"
+    "The entry is recorded for local tracking and does not change TotScrMS or "
+    "any rank in this workbook."
+)

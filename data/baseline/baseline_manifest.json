@@ -1,6 +1,6 @@
 {
   "model_version": "UNH Beta Model v1.2",
-  "built_utc": "2026-07-25T17:39:00+00:00",
+  "built_utc": "2026-08-20T22:39:34+00:00",
   "input_file": "crossings.csv",
   "input_sha256": "3e8bdf27419b2bee8d92edc01f1dcb8dc2a005237cad461a14208b97c4c6083d",
   "input_records": 5592,
@@ -48,5 +48,15 @@
   },
   "output_file": "baseline_all.csv.gz",
   "output_records": 5592,
-  "output_columns": 348
+  "output_columns": 350,
+  "null_values": [
+    "N/A Score - Wetland",
+    "N/A Score - Surface",
+    "N/A Score - Tidal",
+    "N/A Score - Drainage",
+    "No Score - Not Surveyable",
+    "No Score - Private",
+    "No Score - Other",
+    "Unknown"
+  ]
 }

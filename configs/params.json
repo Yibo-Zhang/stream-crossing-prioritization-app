@@ -90,6 +90,28 @@
       "5": 1,
       "0": 1,
       "6": 1.1
+    },
+    "outlet_scour": {
+      "None": 0,
+      "Low": 0.33,
+      "Medium": 0.66,
+      "High": 1
+    },
+    "sediment_fill": {
+      "Open": 0,
+      "1/4 Full": 0,
+      "1/2 Full": 0.33,
+      "3/4 Full": 0.66,
+      "Entirely Full": 1
+    },
+    "bank_erosion": {
+      "None": 0,
+      "Low": 0.5,
+      "High": 1
+    },
+    "bank_armoring": {
+      "Intact": 0,
+      "Failing": 1
     }
   },
   "bins": {
@@ -140,7 +162,8 @@
         "Fair",
         "Good"
       ],
-      "case_sensitive": false
+      "case_sensitive": false,
+      "score_map": "condition"
     },
     "UsHwCon": {
       "enum": [
@@ -148,7 +171,8 @@
         "Fair",
         "Good"
       ],
-      "case_sensitive": false
+      "case_sensitive": false,
+      "score_map": "condition"
     },
     "DsHwCon": {
       "enum": [
@@ -156,7 +180,8 @@
         "Fair",
         "Good"
       ],
-      "case_sensitive": false
+      "case_sensitive": false,
+      "score_map": "condition"
     },
     "StructMat": {
       "enum": [
@@ -171,7 +196,8 @@
         "Wood",
         "Stone"
       ],
-      "case_sensitive": false
+      "case_sensitive": false,
+      "score_map": "material"
     },
     "GC_Score": {
       "enum": [
@@ -181,7 +207,8 @@
         "Partially Compatible",
         "Mostly Compatible"
       ],
-      "case_sensitive": false
+      "case_sensitive": false,
+      "score_map": "geomorphic_compatibility"
     },
     "AOP_Score": {
       "enum": [
@@ -190,7 +217,8 @@
         "Passage only for Adult Trout",
         "No Passage"
       ],
-      "case_sensitive": false
+      "case_sensitive": false,
+      "score_map": "aop"
     },
     "UsUndermin": {
       "enum": [
@@ -227,7 +255,8 @@
         "Medium",
         "High"
       ],
-      "case_sensitive": false
+      "case_sensitive": false,
+      "score_map": "outlet_scour"
     },
     "StructSed": {
       "enum": [
@@ -235,9 +264,11 @@
         "1/4 Full",
         "1/2 Full",
         "3/4 Full",
-        "High"
+        "High",
+        "Entirely Full"
       ],
-      "case_sensitive": false
+      "case_sensitive": false,
+      "score_map": "sediment_fill"
     },
     "UsBankEros": {
       "enum": [
@@ -245,7 +276,8 @@
         "Low",
         "High"
       ],
-      "case_sensitive": false
+      "case_sensitive": false,
+      "score_map": "bank_erosion"
     },
     "DsBankEros": {
       "enum": [
@@ -253,21 +285,24 @@
         "Low",
         "High"
       ],
-      "case_sensitive": false
+      "case_sensitive": false,
+      "score_map": "bank_erosion"
     },
     "UsBankArmo": {
       "enum": [
         "Intact",
         "Failing"
       ],
-      "case_sensitive": false
+      "case_sensitive": false,
+      "score_map": "bank_armoring"
     },
     "DsBankArmo": {
       "enum": [
         "Intact",
         "Failing"
       ],
-      "case_sensitive": false
+      "case_sensitive": false,
+      "score_map": "bank_armoring"
     },
     "AADT": {
       "type": "numeric",
@@ -286,7 +321,18 @@
         5,
         6,
         7
-      ]
+      ],
+      "score_map": "functional_classification"
     }
-  }
+  },
+  "null_values": [
+    "N/A Score - Wetland",
+    "N/A Score - Surface",
+    "N/A Score - Tidal",
+    "N/A Score - Drainage",
+    "No Score - Not Surveyable",
+    "No Score - Private",
+    "No Score - Other",
+    "Unknown"
+  ]
 }

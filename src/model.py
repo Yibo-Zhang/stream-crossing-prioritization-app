@@ -30,7 +30,7 @@ import sys
 from pathlib import Path
 
 from utils.io_utils import load_csv, save_csv, load_params
-from utils.validation import validate_dataset
+from utils.validation import validate_dataset_report, apply_null_codes
 from utils.scoring_utils import normalize_minmax, calculate_confidence, apply_jenks_classification
 from utils.labels import add_labels
 from utils import report_spec
@@ -41,7 +41,7 @@ from goals.structural_risk import calculate_sr
 from goals.road_criticality import calculate_rc
 from goals.wildlife_connectivity import calculate_wl
 from goals.habitat_quality import calculate_hqg
-from goals.economic_impact import calculate_cost
+from goals.economic_impact import calculate_cost, cost_summary
 from goals.environmental_justice import calculate_ej
 
 MODEL_VERSION = report_spec.MODEL_VERSION
@@ -54,7 +54,14 @@ def parse_arguments():
     parser.add_argument('--input', required=True, help='Path to input CSV file')
     parser.add_argument('--output-dir', default='./data/output', help='Output directory')
     parser.add_argument('--params', default='configs/params.json', help='Parameters JSON file')
-    parser.add_argument('--skip-validation', action='store_true', help='Skip validation')
+    parser.add_argument(
+        '--skip-validation', action='store_true',
+        help=('Skip input validation entirely. Rarely needed: categorical '
+              'values that mark a crossing as unscoreable are listed in '
+              'params.json under "null_values" and are converted to missing '
+              'without an error. Skipping validation also skips the numeric '
+              'range checks and the null-code conversion, so a "not scored" '
+              'marker reaches the score maps as an unrecognized string.'))
     parser.add_argument('--version', action='version', version=MODEL_VERSION)
     return parser.parse_args()
 
@@ -141,7 +148,36 @@ def calculate_total_score_ms(df, params):
     return df
 
 
-def run_analysis(df, params):
+def run_analysis(df, params, apply_null_coding=True):
+    """Score every crossing in ``df`` and return the frame with all model columns.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input crossings.
+    params : dict
+        Loaded configs/params.json.
+    apply_null_coding : bool, default True
+        Convert the reviewed "not scored" markers listed in
+        params['null_values'] to NaN before scoring.
+
+    Notes
+    -----
+    The conversion is applied here, not only in the callers, because this
+    function has three of them: main() below, app.py, and
+    scripts/build_baseline.py. Leaving the conversion to the caller meant the
+    baseline builder skipped it, which would have produced Base_ comparison
+    columns computed on a different treatment of the same input than the run
+    they are compared against.
+
+    The conversion is idempotent: once a marker has become NaN,
+    find_null_coded_values no longer sees it, so a caller that has already
+    converted (to report what it converted) loses nothing by the second pass.
+    """
+    if apply_null_coding and 'validation' in params:
+        df, _ = apply_null_codes(df, params['validation'],
+                                 null_values=params.get('null_values'))
+
     print("\nCalculating goal scores...")
     print("  - Location and Landowner labels")
     df = add_labels(df)
@@ -244,14 +280,51 @@ def main():
         print(f"  [error] Error loading input data: {e}")
         sys.exit(1)
 
-    if not args.skip_validation and 'validation' in params:
+    null_coded = {}
+    validation_warnings = []
+
+    if 'validation' not in params:
+        print("\n[warning] No validation rules in the parameters file; "
+              "input data will not be checked.")
+    elif args.skip_validation:
+        print("\n[warning] Validation skipped (--skip-validation). Categorical "
+              "values marking an unscoreable crossing are NOT converted to "
+              "missing and will reach the score maps as unrecognized strings.")
+    else:
         print("\nValidating input data...")
-        errors = validate_dataset(df, params['validation'])
-        if errors:
-            print("  [error] Validation errors found:")
-            for error in errors:
-                print(f"    - {error}")
+        report = validate_dataset_report(
+            df, params['validation'],
+            null_values=params.get('null_values'),
+            score_maps=params.get('score_maps'))
+
+        for message in report.warnings:
+            print(f"  [warning] {message}")
+        validation_warnings = list(report.warnings)
+
+        if not report.ok:
+            print("  [error] Validation failed:")
+            for message in report.errors:
+                print(f"    - {message}")
+            print("\n  Each unrecognized value must be reviewed once and added "
+                  "to configs/params.json, either to that field's "
+                  '"null_values" list if it marks a crossing that could not be '
+                  'scored, or to its "enum" with a matching "score_maps" entry '
+                  "if it is a real category. Use --skip-validation only to "
+                  "inspect a file, never to produce results.")
             sys.exit(1)
+
+        df, null_coded = apply_null_codes(
+            df, params['validation'], null_values=params.get('null_values'))
+
+        if null_coded:
+            total = sum(sum(counts.values()) for counts in null_coded.values())
+            print(f"  [ok] Converted {total} null-coded values to missing "
+                  f"across {len(null_coded)} field(s):")
+            for field, counts in sorted(null_coded.items()):
+                detail = ", ".join(
+                    f"{value} ({count})" for value, count
+                    in sorted(counts.items(), key=lambda kv: -kv[1]))
+                print(f"        {field}: {detail}")
         print("  [ok] Input data validated successfully")
 
     try:
@@ -261,6 +334,16 @@ def main():
         import traceback
         traceback.print_exc()
         sys.exit(1)
+
+    costs = cost_summary(df_results)
+    if costs:
+        print("\nCost estimate coverage:")
+        print(f"  estimated                      {costs['cost_estimated']}")
+        print(f"  no bankfull width measurement  {costs['no_bankfull_width']}")
+        print(f"  missing structure inputs       "
+              f"{costs['missing_structure_inputs']}")
+        print("  Cost is a planning-level figure and does not enter the "
+              "priority score.")
 
     try:
         save_results(df_results, args.output_dir)

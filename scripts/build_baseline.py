@@ -39,9 +39,15 @@ for extra in (REPO_ROOT / "src", REPO_ROOT / "scripts"):
 from model import run_analysis                  # noqa: E402
 from utils.io_utils import load_csv, load_params  # noqa: E402
 from utils import report_spec                    # noqa: E402
+from utils.validation import validate_dataset_report  # noqa: E402
 
 
 def _sha256(path, chunk=1 << 20):
+    """Return the SHA-256 hex digest of ``path``, read in blocks.
+
+    Recorded in the manifest so a later reader can confirm which input file the
+    committed baseline was built from.
+    """
     digest = hashlib.sha256()
     with open(path, "rb") as handle:
         for block in iter(lambda: handle.read(chunk), b""):
@@ -50,6 +56,7 @@ def _sha256(path, chunk=1 << 20):
 
 
 def parse_arguments():
+    """Parse the command line for the baseline builder."""
     parser = argparse.ArgumentParser(
         description=f"Build the {report_spec.MODEL_VERSION} default-weight baseline")
     parser.add_argument("--input", default=str(REPO_ROOT / "data" / "input" / "crossings.csv"))
@@ -61,6 +68,11 @@ def parse_arguments():
 
 
 def main():
+    """Validate the input, score it at the default weights, and store the result.
+
+    Refuses to overwrite an existing baseline without --force, because every
+    Base_ comparison column in every workbook is read against this file.
+    """
     args = parse_arguments()
     output_path = Path(args.output)
 
@@ -75,6 +87,29 @@ def main():
     df = load_csv(input_path)
     print(f"Baseline input: {input_path} ({len(df)} records)")
 
+    # The baseline is the fixed reference every Base_ comparison column is read
+    # against, so it must not be built from data the model would refuse to
+    # score. Validating here means a new unreviewed categorical value cannot
+    # reach the committed baseline unnoticed.
+    if 'validation' in params:
+        report = validate_dataset_report(
+            df, params['validation'],
+            null_values=params.get('null_values'),
+            score_maps=params.get('score_maps'))
+        for message in report.warnings:
+            print(f"  [warning] {message}")
+        if not report.ok:
+            for message in report.errors:
+                print(f"  [error] {message}")
+            raise SystemExit(
+                "Baseline not built: the input contains categorical values the "
+                "model has not been told how to handle. Resolve them in "
+                "configs/params.json first.")
+        if report.null_coded:
+            print(f"  [ok] {report.null_coded_total} null-coded values will be "
+                  f"treated as missing across {len(report.null_coded)} field(s)")
+
+    # run_analysis applies the null-code conversion itself.
     results = run_analysis(df, params)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -93,6 +128,7 @@ def main():
         "output_file": output_path.name,
         "output_records": int(len(results)),
         "output_columns": int(results.shape[1]),
+        "null_values": params.get("null_values", []),
     }
     manifest_path = output_path.parent / "baseline_manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

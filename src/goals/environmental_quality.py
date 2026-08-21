@@ -10,11 +10,56 @@ from utils.scoring_utils import (
 
 
 
-def calculate_erosion_score(df):
+# Component maps, used only when configs/params.json does not carry them. The
+# values match the maps that were hardcoded here before, so a params file
+# written for an earlier version scores identically.
+FALLBACK_EROSION_MAPS = {
+    "outlet_scour": {"None": 0, "Low": 0.33, "Medium": 0.66, "High": 1},
+    "sediment_fill": {"Open": 0, "1/4 Full": 0, "1/2 Full": 0.33,
+                      "3/4 Full": 0.66, "High": 1},
+    "bank_erosion": {"None": 0, "Low": 0.5, "High": 1},
+    "bank_armoring": {"Intact": 0, "Failing": 1},
+}
+
+EROSION_COMPONENT_COLS = [
+    'UsScourScr', 'DsScourScr', 'ObstrctScr', 'ScourScr',
+    'SedFillScr', 'UsBnkErScr', 'DsBnkErScr', 'UsArmScr', 'DsArmScr',
+]
+
+
+def calculate_erosion_score(df, score_maps=None):
     """
     Calculate erosion score from 9 erosion-related components.
     Returns mean of all available components (dynamic).
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input dataframe.
+    score_maps : dict, optional
+        params['score_maps']. The four ordinal component maps (outlet_scour,
+        sediment_fill, bank_erosion, bank_armoring) are read from here so the
+        Definitions sheet and the validation coverage check describe the same
+        mapping the model applies. FALLBACK_EROSION_MAPS is used for any map
+        the params file does not define.
+
+    Notes
+    -----
+    A value that is absent from its component map is scored NaN by Series.map
+    and drops out of the component mean. utils.validation.find_unscored_values
+    reports these at validation time so the gap is visible rather than silent.
     """
+    score_maps = score_maps or {}
+
+    def component_map(name):
+        """Return one component map, preferring params over the fallback.
+
+        An empty map in params is treated as absent rather than as an
+        instruction to score nothing, so a truncated params file degrades to
+        the documented default instead of silently voiding a component.
+        """
+        return score_maps.get(name) or FALLBACK_EROSION_MAPS[name]
+
     def map_undermining_scour(value):
         """Map undermining inventory value to erosion score.
         'None' -> 0; any non-None undermining category -> 1; missing/blank -> NaN.
@@ -47,52 +92,25 @@ def calculate_erosion_score(df):
     df['ObstrctScr'] = df['UsObstruct'].apply(map_obstruction)
     
     # Scour of the Streambed at the Outlet
-    df['ScourScr'] = df['OutScour'].map({
-        'None': 0,
-        'Low': 0.33,
-        'Medium': 0.66,
-        'High': 1
-    })
-    
+    df['ScourScr'] = df['OutScour'].map(component_map('outlet_scour'))
+
     # Structure Filled With Sediment
-    df['SedFillScr'] = df['StructSed'].map({
-        'Open': 0,
-        '1/4 Full': 0,
-        '1/2 Full': 0.33,
-        '3/4 Full': 0.66,
-        'High': 1
-    })
-    
+    df['SedFillScr'] = df['StructSed'].map(component_map('sediment_fill'))
+
     # Upstream Bank Erosion
-    df['UsBnkErScr'] = df['UsBankEros'].map({
-        'None': 0,
-        'Low': 0.5,
-        'High': 1
-    })
-    
+    df['UsBnkErScr'] = df['UsBankEros'].map(component_map('bank_erosion'))
+
     # Downstream Bank Erosion
-    df['DsBnkErScr'] = df['DsBankEros'].map({
-        'None': 0,
-        'Low': 0.5,
-        'High': 1
-    })
-    
+    df['DsBnkErScr'] = df['DsBankEros'].map(component_map('bank_erosion'))
+
     # Upstream Bank Armoring
-    df['UsArmScr'] = df['UsBankArmo'].map({
-        'Intact': 0,
-        'Failing': 1
-    })
-    
+    df['UsArmScr'] = df['UsBankArmo'].map(component_map('bank_armoring'))
+
     # Downstream Bank Armoring
-    df['DsArmScr'] = df['DsBankArmo'].map({
-        'Intact': 0,
-        'Failing': 1
-    })
-    
+    df['DsArmScr'] = df['DsBankArmo'].map(component_map('bank_armoring'))
+
     # Calculate erosion score as mean of all 9 components
-    erosion_cols = ['UsScourScr', 'DsScourScr', 'ObstrctScr', 'ScourScr', 
-                   'SedFillScr', 'UsBnkErScr', 'DsBnkErScr', 'UsArmScr', 'DsArmScr']
-    df['ErosScr'] = df[erosion_cols].mean(axis=1)
+    df['ErosScr'] = df[EROSION_COMPONENT_COLS].mean(axis=1)
     
     # Apply Jenks classification to erosion
     df['Erosion'] = apply_jenks_classification(df['ErosScr'])
@@ -119,8 +137,11 @@ def calculate_eq(df, params):
     weights = params['criteria_weights']['eq']
     score_maps = params['score_maps']
     
-    # Calculate erosion score
-    df = calculate_erosion_score(df)
+    # Calculate erosion score. score_maps is passed through so the four
+    # ordinal component maps are read from configs/params.json, which is what
+    # makes the Definitions sheet and the validation coverage check describe
+    # the mapping the model actually applies rather than a second copy of it.
+    df = calculate_erosion_score(df, score_maps)
     
     # Geomorphic Compatibility Score
     df['GCScr'] = df['GC_Score'].map(score_maps['geomorphic_compatibility'])

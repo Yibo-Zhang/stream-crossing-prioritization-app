@@ -2,7 +2,7 @@ Field,Goal,Description
 SADES_ID,Identification,Unique crossing identifier from the Statewide Asset Data Exchange System (SADES). Used as the join key across every sheet and against the default baseline.
 Location,Identification,"Plain-language location label built as 'stream at road, town' from StreamName, RoadNameF (or STREET) and Town. Where the stream is unnamed in SADES the label reads 'Unnamed stream'."
 Landowner,Identification,"Road owner or maintaining authority, copied from the OWNERSHIP_ field of the NHDOT road inventory (for example TOWN, PRIVATE, DISTRICT 6)."
-Town,Identification,Municipality recorded during the SADES field assessment.
+Town,Identification,"Municipality the crossing lies in. Taken from the SADES Town field, falling back to the NHDOT road inventory TOWN_NAME where SADES is blank. Emitted as its own column so results can be sorted, filtered and grouped at a municipal, regional or watershed scale; the same value is also embedded in the Location label, which cannot be filtered on. Source capitalisation is left as recorded, so SADES 'East Kingston' and road-inventory 'EAST KINGSTON' both appear."
 TOWN_NAME,Identification,Municipality from the NHDOT road inventory join.
 StreamName,Identification,"Named water body at the crossing, where one is recorded in SADES."
 RoadNameF,Identification,Road name recorded during the SADES field assessment.
@@ -180,11 +180,11 @@ CstMult,Economic Impact,"Cost multiplier by NHDOT road tier. Tiers 1 and 2 use 2
 ChanBFW1,Economic Impact,"First channel bankfull width measurement, feet."
 ChanBFW2,Economic Impact,"Second channel bankfull width measurement, feet."
 ChanBFW3,Economic Impact,"Third channel bankfull width measurement, feet."
-AvgBFW,Economic Impact,"Mean of the three channel bankfull width measurements, feet."
-ReqWidth,Economic Impact,"Required replacement structure width, feet, computed as 1.2 times the average bankfull width plus 2."
+AvgBFW,Economic Impact,"Mean of the three channel bankfull width readings ChanBFW1, ChanBFW2 and ChanBFW3, in feet. Drives ReqWidth and therefore the cost estimate. A value of zero means no bankfull width was measured, and suppresses the cost estimate for that crossing."
+ReqWidth,Economic Impact,"Required replacement width in feet, computed as bankfull_multiplier x AvgBFW + 2. Left blank where AvgBFW is zero or absent, so that the 2 ft constant term cannot stand in for a real measured width."
 StructLen,Economic Impact,"Length of the existing structure, feet."
 Cost,Economic Impact,"Unrounded planning-level replacement cost estimate, dollars. Computed as CPI times base cost per unit area times structure length times required width times the cost multiplier. A computed cost of 0 is treated as missing."
-CostEstimate,Economic Impact,"Planning-level replacement cost estimate rounded for reporting, dollars. Rounding base and direction are set in configs/params.json. This is a screening figure and is not a substitute for a project cost estimate. Cost is reported alongside the priority results and does not enter the priority score."
+CostEstimate,Economic Impact,"Planning-level replacement cost estimate in dollars, rounded up to the reporting increment set in params.json under constants.cost_round_base. Derived from CPI, a base cost per unit area, StructLen, ReqWidth and the road-tier multiplier CstMult. See CostBasis for whether and why a cost was estimated for a given crossing."
 SFV,Total Score,Normalized Flood Vulnerability score multiplied by the Flood Vulnerability goal weight.
 SEQ,Total Score,Normalized Environmental Quality score multiplied by the Environmental Quality goal weight.
 SSR,Total Score,Normalized Structural Risk score multiplied by the Structural Risk goal weight.
@@ -208,5 +208,8 @@ TotScrMS,Total Score,"Mean-substituted total crossing score, 0 to 1. Built from 
 TotMSRank,Total Score,"Dense rank on TotScrMS, 1 = highest priority. This is the headline rank of the v1.2 workbook. Every goal sheet is sorted by it."
 RoundScoreMS,Total Score,TotScrMS rounded to two decimal places for reporting.
 TotQualMS,Total Score,"Jenks natural-breaks class of TotScrMS, Very Low to Very High. Classes are computed within the set of crossings in this run, so a filtered extent reclassifies against its own distribution."
-LocalPriority,Local Review,Blank column for local use. Enter 1 to flag a crossing as a local priority. Nothing in this column feeds back into the model.
+LocalPriority,Local Review,"Optional local override entered by the reviewing community, not by the model. 1 raises the crossing as a local priority; 0 sets it aside, that is deprioritises it locally; blank means no local position has been recorded. Recorded for local tracking only: it does not change TotScrMS or any rank in this workbook."
 LocalNotes,Local Review,"Blank column for local use. Enter a short reason for the flag, for example '2020 HazMit Plan' or 'school bus route'."
+SurveyDate,Identification,"Date of the SADES field assessment, from AssessDate, as YYYY-MM-DD. Placed after Landowner so the currency of the underlying survey sits beside the rank. A score is only as current as the survey behind it, and the project final report recommends crossing reassessment every five years."
+AssessDate,Identification,"Raw SADES assessment date field, the source for SurveyDate."
+CostBasis,Economic Impact,"Why a replacement cost is or is not reported for the crossing: 'Estimated'; 'Not estimated: no bankfull width'; or 'Not estimated: missing structure inputs'. Descriptive only, and not used in any score."

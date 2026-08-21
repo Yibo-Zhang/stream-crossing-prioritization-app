@@ -34,5 +34,12 @@ jenkspy>=0.4.1,<0.5
 # Excel report writer
 xlsxwriter>=3.1,<4.0
 
+# Image handling for the Instructions sheet screenshot. Pillow arrives
+# transitively with streamlit today, but scripts/excel_report.py and
+# scripts/build_readability_example.py both import it directly, so it is pinned
+# here rather than relied on as somebody else's transitive dependency. This is
+# the same failure mode as note [1].
+pillow>=10.0.0,<12.0
+
 # SADES photo attachment service
 requests>=2.31.0,<3.0
