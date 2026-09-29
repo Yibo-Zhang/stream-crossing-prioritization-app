@@ -274,7 +274,9 @@ def build_map(points_gdf=None, active_boundary_gdf=None, highlight_ids=None,
     else:
         center = [43.6, -71.5]  # roughly central New Hampshire
 
-    m = folium.Map(location=center, zoom_start=9, tiles="CartoDB positron",
+    # CARTO basemaps require an API key; use Folium's key-free OSM provider,
+    # which includes the required OpenStreetMap contributor attribution.
+    m = folium.Map(location=center, zoom_start=9, tiles="OpenStreetMap",
                    control_scale=True, prefer_canvas=True)
 
     if active_boundary_gdf is not None and not active_boundary_gdf.empty:
