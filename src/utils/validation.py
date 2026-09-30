@@ -459,6 +459,28 @@ def validate_dataset(df, validation_rules, null_values=None):
     return validate_dataset_report(df, validation_rules, null_values).errors
 
 
+def canonicalize_enum_values(df, validation_rules, copy=True):
+    """Use the declared spelling/type for values accepted by enum validation.
+
+    Scoring uses exact keys, whereas validation accepts case, whitespace and
+    integral-number variants. Leave missing and unrecognized values unchanged;
+    this is not a replacement for validation or null-code conversion.
+    """
+    out = df.copy() if copy else df
+    for field, rules in validation_rules.items():
+        if field not in out.columns or "enum" not in rules:
+            continue
+        case_sensitive = rules.get("case_sensitive", False)
+        canonical = {
+            comparison_key(value, case_sensitive): value for value in rules["enum"]
+        }
+        canonical.pop(None, None)
+        out[field] = out[field].map(
+            lambda value: canonical.get(comparison_key(value, case_sensitive), value)
+        )
+    return out
+
+
 def apply_null_codes(df, validation_rules, null_values=None, copy=True):
     """Convert null-coded categorical markers to NaN.
 

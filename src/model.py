@@ -30,7 +30,7 @@ import sys
 from pathlib import Path
 
 from utils.io_utils import load_csv, save_csv, load_params
-from utils.validation import validate_dataset_report, apply_null_codes
+from utils.validation import validate_dataset_report, apply_null_codes, canonicalize_enum_values
 from utils.scoring_utils import normalize_minmax, calculate_confidence, apply_jenks_classification
 from utils.labels import add_labels
 from utils import report_spec
@@ -177,6 +177,8 @@ def run_analysis(df, params, apply_null_coding=True):
     if apply_null_coding and 'validation' in params:
         df, _ = apply_null_codes(df, params['validation'],
                                  null_values=params.get('null_values'))
+    if 'validation' in params:
+        df = canonicalize_enum_values(df, params['validation'])
 
     print("\nCalculating goal scores...")
     print("  - Location and Landowner labels")

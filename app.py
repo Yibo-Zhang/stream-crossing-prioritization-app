@@ -48,6 +48,7 @@ from model import run_analysis  # noqa: E402
 from utils import gis_utils  # noqa: E402  (src/utils/gis_utils.py)
 from excel_report import build_excel_report  # noqa: E402  (scripts/excel_report.py)
 from utils.validation import validate_dataset_report, apply_null_codes  # noqa: E402
+from utils.io_utils import load_csv  # noqa: E402
 
 st.set_page_config(
     page_title="Stream Crossing Prioritization Model (UNH Beta Model v1.2)",
@@ -482,7 +483,7 @@ def load_default_params():
 def _load_input_cached(signature):
     path = Path(signature[0])
     if path.exists():
-        return pd.read_csv(path, low_memory=False)
+        return load_csv(path, low_memory=False)
     return None
 
 
@@ -1099,7 +1100,7 @@ def main():
     )
 
     if uploaded is not None:
-        df = pd.read_csv(uploaded, low_memory=False)
+        df = load_csv(uploaded, low_memory=False)
         data_token = f"{uploaded.name}:{uploaded.size}"
     else:
         df = load_default_input()
